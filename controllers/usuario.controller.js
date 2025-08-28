@@ -9,6 +9,7 @@ import emailService from '../utils/emailService.js'
 class UsuariosController {
   /**
    * Obtiene todos los usuarios
+   * ✅
    */
   async obtenerUsuarios(req, res) {
     try {
@@ -89,6 +90,7 @@ class UsuariosController {
 
   /**
    * Obtiene un usuario por ID
+   * ✅
    */
   async obtenerUsuarioPorId(req, res) {
     try {
