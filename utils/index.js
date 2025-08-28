@@ -1,2 +1,0 @@
-﻿// Utilities module
-module.exports = {};
