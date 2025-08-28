@@ -59,7 +59,9 @@ class UsuariosController {
       }
 
       if (conditions.length > 0) {
-        baseQuery = sql`${baseQuery} AND ${sql.join(conditions, sql` AND `)}`;
+        for (const condition of conditions) {
+          baseQuery = sql`${baseQuery} AND ${condition}`;
+        }
       }
 
       const finalQuery = sql`
