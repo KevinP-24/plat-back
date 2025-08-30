@@ -146,8 +146,9 @@ class UsuariosController {
     }
   }
 
+
   /**
-   * Crea un nuevo usuario
+   * Crea un nuevo usuario con sistema de activación por email
    */
   async crearUsuario(req, res) {
     try {
@@ -160,8 +161,8 @@ class UsuariosController {
         departamento,
         cargo,
         rol_id,
-        password,
-        activo = true 
+        password
+        // Removemos activo del body, siempre será false por defecto
       } = req.body;
 
       // Validaciones requeridas
@@ -247,6 +248,7 @@ class UsuariosController {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+      // Crear usuario con activo = false (requiere activación)
       const nuevosUsuarios = await sql`
         INSERT INTO public.usuarios (
           nombre_usuario, 
@@ -270,24 +272,68 @@ class UsuariosController {
           ${cargo || null},
           ${parseInt(rol_id)},
           ${hashedPassword},
-          ${Boolean(activo)}
+          false
         )
         RETURNING id, nombre_usuario, email, nombres, apellidos, 
                   telefono, departamento, cargo, rol_id, activo, 
                   fecha_creacion, fecha_actualizacion
       `;
 
-      // Enviar email de bienvenida
-      await emailService.enviarBienvenida(
+      const nuevoUsuario = nuevosUsuarios[0];
+
+      // Generar código de activación (6 dígitos numéricos)
+      const codigoActivacion = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Calcular fecha de expiración (24 horas desde ahora)
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24);
+
+      // Guardar código de activación en password_reset_tokens
+      await sql`
+        INSERT INTO public.password_reset_tokens (
+          usuario_id,
+          token,
+          expira_en,
+          usado,
+          fecha_creacion
+        )
+        VALUES (
+          ${nuevoUsuario.id},
+          ${codigoActivacion},
+          ${fechaExpiracion},
+          false,
+          NOW()
+        )
+      `;
+
+      // Enviar email de activación
+      const emailResult = await emailService.enviarActivacionCuenta(
         email.trim().toLowerCase(),
         nombres.trim(),
-        nombre_usuario.trim()
+        codigoActivacion
       );
+
+      if (!emailResult.success) {
+        console.warn('⚠️ Usuario creado pero email de activación falló:', emailResult.error);
+      }
 
       res.status(201).json({
         success: true,
-        message: 'Usuario creado exitosamente',
-        data: nuevosUsuarios[0]
+        message: 'Usuario creado exitosamente. Se ha enviado un código de activación a tu email',
+        data: {
+          id: nuevoUsuario.id,
+          nombre_usuario: nuevoUsuario.nombre_usuario,
+          email: nuevoUsuario.email,
+          nombres: nuevoUsuario.nombres,
+          apellidos: nuevoUsuario.apellidos,
+          telefono: nuevoUsuario.telefono,
+          departamento: nuevoUsuario.departamento,
+          cargo: nuevoUsuario.cargo,
+          rol_id: nuevoUsuario.rol_id,
+          activo: nuevoUsuario.activo, // false
+          fecha_creacion: nuevoUsuario.fecha_creacion,
+          email_enviado: emailResult.success
+        }
       });
 
     } catch (error) {
@@ -782,6 +828,449 @@ class UsuariosController {
 
     } catch (error) {
       console.error('Error al restablecer contraseña:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+    /**
+   * Activa la cuenta de un usuario mediante código de verificación
+   * Endpoint: POST /api/usuarios/activar
+   * Acceso: Público (sin autenticación)
+   */
+  async activarCuenta(req, res) {
+    try {
+      const { email, codigo } = req.body;
+
+      // Validaciones de entrada
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({
+          success: false,
+          message: 'El email es requerido y debe ser válido',
+          error: 'INVALID_EMAIL'
+        });
+      }
+
+      if (!codigo || typeof codigo !== 'string' || codigo.trim().length !== 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'El código de activación debe tener exactamente 6 dígitos',
+          error: 'INVALID_CODE_FORMAT'
+        });
+      }
+
+      // Buscar usuario por email
+      const usuarios = await sql`
+        SELECT u.id, u.nombres, u.apellidos, u.email, u.activo, u.nombre_usuario,
+              r.nombre as rol_nombre
+        FROM public.usuarios u
+        LEFT JOIN public.roles r ON u.rol_id = r.id
+        WHERE u.email = ${email.trim().toLowerCase()}
+      `;
+
+      if (usuarios.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No se encontró ninguna cuenta asociada a este email',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      const usuario = usuarios[0];
+
+      // Verificar si la cuenta ya está activa
+      if (usuario.activo) {
+        return res.status(400).json({
+          success: false,
+          message: 'Esta cuenta ya se encuentra activa. Puedes iniciar sesión normalmente',
+          error: 'ACCOUNT_ALREADY_ACTIVE'
+        });
+      }
+
+      // Buscar el código de activación
+      const tokens = await sql`
+        SELECT id, token, expira_en, usado, fecha_creacion
+        FROM public.password_reset_tokens 
+        WHERE usuario_id = ${usuario.id} 
+          AND token = ${codigo.trim()}
+          AND usado = false
+        ORDER BY fecha_creacion DESC
+        LIMIT 1
+      `;
+
+      if (tokens.length === 0) {
+        // Log del intento fallido para seguridad
+        console.warn('❌ Intento de activación con código inválido:', {
+          email: email.trim().toLowerCase(),
+          codigo: codigo.trim(),
+          user_id: usuario.id,
+          timestamp: new Date().toISOString(),
+          ip: req.ip || 'unknown'
+        });
+
+        return res.status(400).json({
+          success: false,
+          message: 'El código de activación es incorrecto o ya ha sido utilizado',
+          error: 'INVALID_OR_USED_CODE'
+        });
+      }
+
+      const tokenData = tokens[0];
+
+      // Verificar si el código ha expirado
+      const ahora = new Date();
+      const fechaExpiracion = new Date(tokenData.expira_en);
+      
+      if (ahora > fechaExpiracion) {
+        console.warn('⏰ Intento de activación con código expirado:', {
+          email: email.trim().toLowerCase(),
+          user_id: usuario.id,
+          expira_en: tokenData.expira_en,
+          timestamp: new Date().toISOString()
+        });
+
+        return res.status(400).json({
+          success: false,
+          message: 'El código de activación ha expirado. Solicita un nuevo código',
+          error: 'CODE_EXPIRED',
+          data: {
+            expiro_en: fechaExpiracion.toISOString(),
+            puede_reenviar: true
+          }
+        });
+      }
+
+      // ✅ Código válido - Proceder con la activación
+      
+      try {
+        // Iniciar transacción implícita
+        
+        // 1. Activar la cuenta del usuario
+        const usuarioActualizado = await sql`
+          UPDATE public.usuarios 
+          SET activo = true, 
+              fecha_actualizacion = NOW()
+          WHERE id = ${usuario.id}
+          RETURNING id, nombre_usuario, email, nombres, apellidos, activo, fecha_actualizacion
+        `;
+
+        // 2. Marcar el código como usado
+        await sql`
+          UPDATE public.password_reset_tokens 
+          SET usado = true
+          WHERE id = ${tokenData.id}
+        `;
+
+        // 3. Enviar email de confirmación (opcional - no fallar si falla)
+        let emailConfirmacionEnviado = false;
+        try {
+          const emailResult = await emailService.enviarConfirmacionActivacion(
+            usuario.email,
+            usuario.nombres
+          );
+          emailConfirmacionEnviado = emailResult.success;
+          
+          if (!emailResult.success) {
+            console.warn('⚠️ No se pudo enviar email de confirmación:', emailResult.error);
+          }
+        } catch (emailError) {
+          console.error('❌ Error al enviar email de confirmación:', emailError);
+        }
+
+        // 4. Log exitoso para auditoría
+        console.log('✅ Cuenta activada exitosamente:', {
+          user_id: usuario.id,
+          email: usuario.email,
+          nombres: usuario.nombres,
+          rol: usuario.rol_nombre,
+          fecha_activacion: new Date().toISOString(),
+          ip: req.ip || 'unknown',
+          user_agent: req.get('User-Agent') || 'unknown'
+        });
+
+        // 5. Respuesta exitosa
+        res.status(200).json({
+          success: true,
+          message: `¡Felicitaciones ${usuario.nombres}! Tu cuenta ha sido activada exitosamente. Ya puedes iniciar sesión.`,
+          data: {
+            user: {
+              id: usuarioActualizado[0].id,
+              nombre_usuario: usuarioActualizado[0].nombre_usuario,
+              email: usuarioActualizado[0].email,
+              nombres: usuarioActualizado[0].nombres,
+              apellidos: usuarioActualizado[0].apellidos,
+              activo: usuarioActualizado[0].activo,
+              rol: usuario.rol_nombre
+            },
+            activacion: {
+              fecha_activacion: usuarioActualizado[0].fecha_actualizacion,
+              email_confirmacion_enviado: emailConfirmacionEnviado,
+              puede_iniciar_sesion: true
+            }
+          }
+        });
+
+      } catch (dbError) {
+        console.error('❌ Error en base de datos durante activación:', dbError);
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Error interno al activar la cuenta. Intenta nuevamente',
+          error: 'DATABASE_ERROR'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error general en activación de cuenta:', {
+        error: error.message,
+        stack: error.stack,
+        body: req.body,
+        timestamp: new Date().toISOString()
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor. Por favor, intenta más tarde',
+        error: 'INTERNAL_SERVER_ERROR'
+      });
+    }
+  }
+
+    /**
+   * Valida el código de activación y activa la cuenta del usuario
+   */
+  async validarCodigoActivacion(req, res) {
+    try {
+      const { email, codigo } = req.body;
+
+      // Validaciones básicas
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({
+          success: false,
+          message: 'El email es requerido y debe ser válido'
+        });
+      }
+
+      if (!codigo || typeof codigo !== 'string' || codigo.trim().length !== 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'El código de activación debe tener 6 dígitos'
+        });
+      }
+
+      // Buscar al usuario por email
+      const usuarios = await sql`
+        SELECT id, nombres, apellidos, email, activo 
+        FROM public.usuarios 
+        WHERE email = ${email.trim().toLowerCase()}
+      `;
+
+      if (usuarios.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No se encontró una cuenta con ese email'
+        });
+      }
+
+      const usuario = usuarios[0];
+
+      // Verificar si la cuenta ya está activa
+      if (usuario.activo) {
+        return res.status(400).json({
+          success: false,
+          message: 'Esta cuenta ya está activada'
+        });
+      }
+
+      // Buscar el código de activación en password_reset_tokens
+      const tokens = await sql`
+        SELECT id, token, expira_en, usado, fecha_creacion
+        FROM public.password_reset_tokens 
+        WHERE usuario_id = ${usuario.id} 
+          AND token = ${codigo.trim()}
+          AND usado = false
+        ORDER BY fecha_creacion DESC
+        LIMIT 1
+      `;
+
+      if (tokens.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Código de activación inválido o ya utilizado'
+        });
+      }
+
+      const tokenData = tokens[0];
+
+      // Verificar si el código ha expirado
+      const ahora = new Date();
+      if (ahora > new Date(tokenData.expira_en)) {
+        return res.status(400).json({
+          success: false,
+          message: 'El código de activación ha expirado. Solicita uno nuevo'
+        });
+      }
+
+      // Todo está correcto, proceder con la activación
+      
+      // 1. Activar el usuario
+      await sql`
+        UPDATE public.usuarios 
+        SET activo = true, fecha_actualizacion = NOW()
+        WHERE id = ${usuario.id}
+      `;
+
+      // 2. Marcar el token como usado
+      await sql`
+        UPDATE public.password_reset_tokens 
+        SET usado = true
+        WHERE id = ${tokenData.id}
+      `;
+
+      // 3. Enviar email de confirmación de activación (opcional)
+      const emailResult = await emailService.enviarConfirmacionActivacion(
+        usuario.email,
+        usuario.nombres
+      );
+
+      // 4. Log de la activación exitosa
+      console.log('✅ Cuenta activada exitosamente:', {
+        user_id: usuario.id,
+        email: usuario.email,
+        fecha_activacion: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Cuenta activada exitosamente. Ya puedes iniciar sesión',
+        data: {
+          user_id: usuario.id,
+          email: usuario.email,
+          nombres: usuario.nombres,
+          apellidos: usuario.apellidos,
+          activo: true,
+          fecha_activacion: new Date().toISOString(),
+          email_confirmacion_enviado: emailResult.success
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al validar código de activación:', error);
+      
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  /**
+   * Reenvía un código de activación para cuentas no activadas
+   */
+  async reenviarCodigoActivacion(req, res) {
+    try {
+      const { email } = req.body;
+
+      // Validación básica
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({
+          success: false,
+          message: 'El email es requerido y debe ser válido'
+        });
+      }
+
+      // Buscar al usuario
+      const usuarios = await sql`
+        SELECT id, nombres, email, activo 
+        FROM public.usuarios 
+        WHERE email = ${email.trim().toLowerCase()}
+      `;
+
+      if (usuarios.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No se encontró una cuenta con ese email'
+        });
+      }
+
+      const usuario = usuarios[0];
+
+      // Verificar si la cuenta ya está activa
+      if (usuario.activo) {
+        return res.status(400).json({
+          success: false,
+          message: 'Esta cuenta ya está activada'
+        });
+      }
+
+      // Verificar límite de reenvíos (opcional - prevenir spam)
+      const reenviosHoy = await sql`
+        SELECT COUNT(*) as total
+        FROM public.password_reset_tokens 
+        WHERE usuario_id = ${usuario.id}
+          AND fecha_creacion >= NOW() - INTERVAL '24 hours'
+      `;
+
+      if (reenviosHoy[0].total >= 5) { // Máximo 5 códigos por día
+        return res.status(429).json({
+          success: false,
+          message: 'Has alcanzado el límite de códigos por día. Intenta mañana'
+        });
+      }
+
+      // Invalidar códigos anteriores (opcional)
+      await sql`
+        UPDATE public.password_reset_tokens 
+        SET usado = true
+        WHERE usuario_id = ${usuario.id} AND usado = false
+      `;
+
+      // Generar nuevo código
+      const nuevoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Calcular nueva fecha de expiración (24 horas)
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24);
+
+      // Guardar nuevo código
+      await sql`
+        INSERT INTO public.password_reset_tokens (
+          usuario_id,
+          token,
+          expira_en,
+          usado,
+          fecha_creacion
+        )
+        VALUES (
+          ${usuario.id},
+          ${nuevoCodigo},
+          ${fechaExpiracion},
+          false,
+          NOW()
+        )
+      `;
+
+      // Enviar nuevo código por email
+      const emailResult = await emailService.enviarActivacionCuenta(
+        usuario.email,
+        usuario.nombres,
+        nuevoCodigo
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Se ha enviado un nuevo código de activación a tu email',
+        data: {
+          email: usuario.email,
+          codigo_enviado: emailResult.success
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al reenviar código de activación:', error);
+      
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor'

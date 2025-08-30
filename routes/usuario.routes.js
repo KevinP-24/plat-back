@@ -482,4 +482,11 @@ router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bi
  */
 router.post('/restablecer-contraseña', usuariosController.restablecerContraseña.bind(usuariosController));
 
+
+// Activación de cuenta - NUEVA RUTA
+router.post('/activar', usuariosController.activarCuenta);
+
+// Reenvío de código de activación (opcional)
+router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion);
+
 export default router;
