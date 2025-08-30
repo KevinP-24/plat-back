@@ -1,11 +1,12 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import nodemailer from 'nodemailer';
 
-/**
- * Servicio de Email para PLAT-EPA
- * Configurado para usar Gmail como proveedor SMTP
- */
 class EmailService {
   constructor() {
+    console.log('EMAIL_USER:', process.env.EMAIL_USER); // Para debug
+    console.log('EMAIL_PASS definido:', !!process.env.EMAIL_PASS); // Para debug
+    
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -293,7 +294,115 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
+
+    /**
+   * Envía email de activación de cuenta con código
+   * @param {string} email - Email del destinatario
+   * @param {string} nombres - Nombre del usuario
+   * @param {string} codigoActivacion - Código de 6 dígitos para activar la cuenta
+   */
+  async enviarActivacionCuenta(email, nombres, codigoActivacion) {
+    try {
+      const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activar-cuenta`;
+      
+      const mailOptions = {
+        from: {
+          name: 'PLAT-EPA - Soporte Técnico',
+          address: process.env.EMAIL_USER || 'notificacionesplat@gmail.com'
+        },
+        to: email,
+        subject: '🔐 Activa tu cuenta - PLAT-EPA',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+              .code-box { background: #e8f4f8; border: 2px solid #667eea; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0; }
+              .code { font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 5px; }
+              .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🏢 PLAT-EPA</h1>
+                <p>Plataforma de Apoyo TIC</p>
+              </div>
+              
+              <div class="content">
+                <h2>¡Hola ${nombres}! 👋</h2>
+                
+                <p>¡Bienvenido a PLAT-EPA! Tu cuenta ha sido creada exitosamente, pero necesitas activarla antes de poder usarla.</p>
+                
+                <p>Para activar tu cuenta, usa el siguiente código de activación:</p>
+                
+                <div class="code-box">
+                  <p style="margin: 0; font-size: 18px; color: #666;">Código de Activación:</p>
+                  <div class="code">${codigoActivacion}</div>
+                </div>
+                
+                <center>
+                  <a href="${activationUrl}" class="button">🚀 Activar mi Cuenta</a>
+                </center>
+                
+                <p>También puedes acceder directamente a:</p>
+                <p style="background: #f0f0f0; padding: 10px; border-radius: 3px; word-break: break-all;">
+                  ${activationUrl}
+                </p>
+                
+                <div class="warning">
+                  <strong>⚠️ Información importante:</strong>
+                  <ul>
+                    <li>Este código es válido por <strong>24 horas</strong></li>
+                    <li>Solo se puede usar una vez</li>
+                    <li>Si no activaste esta cuenta, ignora este email</li>
+                    <li>El código es: <strong>${codigoActivacion}</strong></li>
+                  </ul>
+                </div>
+                
+                <h3>¿Qué puedes hacer con PLAT-EPA? 🎯</h3>
+                <ul>
+                  <li>🎫 Crear y gestionar tickets de soporte técnico</li>
+                  <li>💻 Consultar el inventario de equipos</li>
+                  <li>📚 Acceder a la base de conocimientos</li>
+                  <li>📊 Ver reportes y análisis</li>
+                </ul>
+                
+                <p>Una vez actives tu cuenta, podrás acceder a todas estas funcionalidades.</p>
+                
+                <p>Si tienes problemas para activar tu cuenta o necesitas ayuda, contacta al administrador del sistema.</p>
+              </div>
+              
+              <div class="footer">
+                <p>Este es un email automático de PLAT-EPA - No responder</p>
+                <p>© 2025 Empresas Públicas de Armenia E.S.P. - Dirección TIC</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('✅ Email de activación enviado:', result.messageId);
+      return { success: true, messageId: result.messageId };
+
+    } catch (error) {
+      console.error('❌ Error al enviar email de activación:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
+
+
 
 // Exportar instancia única del servicio
 export default new EmailService();
