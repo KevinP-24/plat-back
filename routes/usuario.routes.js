@@ -1,5 +1,6 @@
 import express from 'express';
 import UsuariosController from '../controllers/usuario.controller.js';
+import { validarActivacionCuenta, validarReenvioActivacion } from '../middlewares/validation.js';
 
 const router = express.Router();
 const usuariosController = new UsuariosController();
@@ -53,20 +54,8 @@ const usuariosController = new UsuariosController();
  *     responses:
  *       200:
  *         description: Lista de usuarios obtenida exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Usuario'
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.get('/', usuariosController.obtenerUsuarios.bind(usuariosController));
 
@@ -88,22 +77,12 @@ router.get('/', usuariosController.obtenerUsuarios.bind(usuariosController));
  *     responses:
  *       200:
  *         description: Usuario encontrado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Usuario'
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: ID de usuario inválido
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Usuario no encontrado
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.get('/:id', usuariosController.obtenerUsuarioPorId.bind(usuariosController));
 
@@ -112,54 +91,69 @@ router.get('/:id', usuariosController.obtenerUsuarioPorId.bind(usuariosControlle
  * /api/usuarios:
  *   post:
  *     summary: Crear un nuevo usuario
- *     description: Crea un nuevo usuario en el sistema con contraseña encriptada
+ *     description: Crea un nuevo usuario en el sistema. El usuario se crea inactivo y se envía un código de activación por email
  *     tags: [Usuarios]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UsuarioInput'
- *           example:
- *             nombre_usuario: "juanperez"
- *             email: "juan.perez@epa.gov.co"
- *             nombres: "Juan Carlos"
- *             apellidos: "Pérez González"
- *             telefono: "3001234567"
- *             departamento: "TIC"
- *             cargo: "Analista de Sistemas"
- *             rol_id: 2
- *             password: "password123"
- *             activo: true
+ *             type: object
+ *             required:
+ *               - nombre_usuario
+ *               - email
+ *               - nombres
+ *               - apellidos
+ *               - rol_id
+ *               - password
+ *             properties:
+ *               nombre_usuario:
+ *                 type: string
+ *                 description: Nombre de usuario único
+ *                 example: "juanperez"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email único del usuario
+ *                 example: "juan.perez@epa.gov.co"
+ *               nombres:
+ *                 type: string
+ *                 description: Nombres del usuario
+ *                 example: "Juan Carlos"
+ *               apellidos:
+ *                 type: string
+ *                 description: Apellidos del usuario
+ *                 example: "Pérez González"
+ *               telefono:
+ *                 type: string
+ *                 description: Teléfono del usuario (opcional)
+ *                 example: "3001234567"
+ *               departamento:
+ *                 type: string
+ *                 description: Departamento del usuario (opcional)
+ *                 example: "TIC"
+ *               cargo:
+ *                 type: string
+ *                 description: Cargo del usuario (opcional)
+ *                 example: "Analista de Sistemas"
+ *               rol_id:
+ *                 type: integer
+ *                 description: ID del rol asignado
+ *                 example: 2
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Contraseña del usuario (mínimo 6 caracteres)
+ *                 example: "password123"
  *     responses:
  *       201:
- *         description: Usuario creado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Usuario creado exitosamente"
- *                 data:
- *                   $ref: '#/components/schemas/Usuario'
+ *         description: Usuario creado exitosamente. Se envió código de activación por email
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: Datos de entrada inválidos
  *       409:
- *         description: Conflicto - El usuario ya existe
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               message: "Ya existe un usuario con ese nombre de usuario"
+ *         description: El usuario ya existe (email o nombre_usuario duplicado)
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.post('/', usuariosController.crearUsuario.bind(usuariosController));
 
@@ -168,7 +162,7 @@ router.post('/', usuariosController.crearUsuario.bind(usuariosController));
  * /api/usuarios/{id}:
  *   put:
  *     summary: Actualizar un usuario existente
- *     description: Actualiza los datos de un usuario específico (excepto email)
+ *     description: Actualiza los datos de un usuario específico. El email no se puede modificar por seguridad
  *     tags: [Usuarios]
  *     parameters:
  *       - in: path
@@ -183,47 +177,51 @@ router.post('/', usuariosController.crearUsuario.bind(usuariosController));
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UsuarioUpdate'
- *           example:
- *             nombre_usuario: "juanperez_updated"
- *             nombres: "Juan Carlos"
- *             apellidos: "Pérez González"
- *             telefono: "3009876543"
- *             departamento: "Sistemas"
- *             cargo: "Coordinador de TIC"
- *             rol_id: 1
- *             activo: true
+ *             type: object
+ *             properties:
+ *               nombre_usuario:
+ *                 type: string
+ *                 description: Nuevo nombre de usuario
+ *                 example: "juanperez_updated"
+ *               nombres:
+ *                 type: string
+ *                 description: Nombres actualizados
+ *                 example: "Juan Carlos"
+ *               apellidos:
+ *                 type: string
+ *                 description: Apellidos actualizados
+ *                 example: "Pérez González"
+ *               telefono:
+ *                 type: string
+ *                 description: Teléfono actualizado
+ *                 example: "3009876543"
+ *               departamento:
+ *                 type: string
+ *                 description: Departamento actualizado
+ *                 example: "Sistemas"
+ *               cargo:
+ *                 type: string
+ *                 description: Cargo actualizado
+ *                 example: "Coordinador de TIC"
+ *               rol_id:
+ *                 type: integer
+ *                 description: Nuevo rol del usuario
+ *                 example: 1
+ *               activo:
+ *                 type: boolean
+ *                 description: Estado activo del usuario
+ *                 example: true
  *     responses:
  *       200:
  *         description: Usuario actualizado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Usuario actualizado exitosamente"
- *                 data:
- *                   $ref: '#/components/schemas/Usuario'
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: Datos inválidos o ID inválido
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Usuario no encontrado
  *       409:
  *         description: Conflicto - El nombre de usuario ya existe
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               message: "Ya existe otro usuario con ese nombre de usuario"
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.put('/:id', usuariosController.actualizarUsuario.bind(usuariosController));
 
@@ -232,7 +230,7 @@ router.put('/:id', usuariosController.actualizarUsuario.bind(usuariosController)
  * /api/usuarios/{id}:
  *   delete:
  *     summary: Eliminar un usuario (soft delete)
- *     description: Marca un usuario como inactivo en lugar de eliminarlo permanentemente
+ *     description: Marca un usuario como inactivo en lugar de eliminarlo permanentemente de la base de datos
  *     tags: [Usuarios]
  *     parameters:
  *       - in: path
@@ -244,7 +242,7 @@ router.put('/:id', usuariosController.actualizarUsuario.bind(usuariosController)
  *         example: 1
  *     responses:
  *       200:
- *         description: Usuario eliminado exitosamente
+ *         description: Usuario eliminado exitosamente (marcado como inactivo)
  *         content:
  *           application/json:
  *             schema:
@@ -257,11 +255,11 @@ router.put('/:id', usuariosController.actualizarUsuario.bind(usuariosController)
  *                   type: string
  *                   example: "Usuario eliminado exitosamente"
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: ID de usuario inválido
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Usuario no encontrado
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.delete('/:id', usuariosController.eliminarUsuario.bind(usuariosController));
 
@@ -295,11 +293,11 @@ router.delete('/:id', usuariosController.eliminarUsuario.bind(usuariosController
  *                   type: string
  *                   example: "Último acceso actualizado exitosamente"
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: ID de usuario inválido
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Usuario no encontrado o inactivo
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.patch('/:id/ultimo-acceso', usuariosController.actualizarUltimoAcceso.bind(usuariosController));
 
@@ -337,47 +335,19 @@ router.patch('/:id/ultimo-acceso', usuariosController.actualizarUltimoAcceso.bin
  *                 minLength: 6
  *                 description: Nueva contraseña (mínimo 6 caracteres)
  *                 example: "newPassword456"
- *           example:
- *             passwordActual: "password123"
- *             passwordNueva: "newPassword456"
  *     responses:
  *       200:
  *         description: Contraseña actualizada exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Contraseña actualizada exitosamente"
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: Datos inválidos
  *       401:
  *         description: Contraseña actual incorrecta
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               message: "La contraseña actual es incorrecta"
  *       403:
  *         description: Usuario inactivo
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               message: "Usuario inactivo"
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Usuario no encontrado
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.patch('/:id/cambiar-contraseña', usuariosController.cambiarContraseña.bind(usuariosController));
 
@@ -402,26 +372,13 @@ router.patch('/:id/cambiar-contraseña', usuariosController.cambiarContraseña.b
  *                 format: email
  *                 description: Email del usuario para recuperar contraseña
  *                 example: "juan.perez@epa.gov.co"
- *           example:
- *             email: "juan.perez@epa.gov.co"
  *     responses:
  *       200:
  *         description: Instrucciones de recuperación enviadas (siempre responde así por seguridad)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Si el email está registrado, recibirás las instrucciones de recuperación"
  *       400:
- *         $ref: '#/components/responses/BadRequest'
+ *         description: Email inválido
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
 router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bind(usuariosController));
 
@@ -451,12 +408,46 @@ router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bi
  *                 minLength: 6
  *                 description: Nueva contraseña (mínimo 6 caracteres)
  *                 example: "newPassword789"
- *           example:
- *             token: "a1b2c3d4e5f6789012345678901234567890abcdef"
- *             passwordNueva: "newPassword789"
  *     responses:
  *       200:
  *         description: Contraseña restablecida exitosamente
+ *       400:
+ *         description: Token inválido o datos incorrectos
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/restablecer-contraseña', usuariosController.restablecerContraseña.bind(usuariosController));
+
+/**
+ * @swagger
+ * /api/usuarios/activar:
+ *   post:
+ *     summary: Activar cuenta de usuario
+ *     description: Activa la cuenta de un usuario usando el código de 6 dígitos enviado por email
+ *     tags: [Usuarios]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - codigo
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email del usuario a activar
+ *                 example: "juan.perez@epa.gov.co"
+ *               codigo:
+ *                 type: string
+ *                 pattern: "^[0-9]{6}$"
+ *                 description: Código de activación de 6 dígitos
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Cuenta activada exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -467,26 +458,136 @@ router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bi
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Contraseña restablecida exitosamente"
+ *                   example: "¡Felicitaciones Juan! Tu cuenta ha sido activada exitosamente. Ya puedes iniciar sesión."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         nombre_usuario:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         nombres:
+ *                           type: string
+ *                         apellidos:
+ *                           type: string
+ *                         activo:
+ *                           type: boolean
+ *                           example: true
+ *                     activacion:
+ *                       type: object
+ *                       properties:
+ *                         fecha_activacion:
+ *                           type: string
+ *                           format: date-time
+ *                         email_confirmacion_enviado:
+ *                           type: boolean
+ *                         puede_iniciar_sesion:
+ *                           type: boolean
+ *                           example: true
  *       400:
- *         description: Token inválido o datos incorrectos
+ *         description: Datos inválidos, cuenta ya activa, código incorrecto o expirado
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/activar', validarActivacionCuenta, usuariosController.activarCuenta.bind(usuariosController));
+
+/**
+ * @swagger
+ * /api/usuarios/reenviar-activacion:
+ *   post:
+ *     summary: Reenviar código de activación
+ *     description: Reenvía un nuevo código de activación para cuentas no activadas
+ *     tags: [Usuarios]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email del usuario que necesita reenvío
+ *                 example: "juan.perez@epa.gov.co"
+ *     responses:
+ *       200:
+ *         description: Nuevo código enviado exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               message: "Token inválido o expirado"
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Se ha enviado un nuevo código de activación a tu email"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                     codigo_enviado:
+ *                       type: boolean
+ *       400:
+ *         description: Email inválido o cuenta ya activa
+ *       404:
+ *         description: Usuario no encontrado
+ *       429:
+ *         description: Límite de reenvíos alcanzado (máximo 5 por día)
  *       500:
- *         $ref: '#/components/responses/InternalError'
+ *         description: Error interno del servidor
  */
-router.post('/restablecer-contraseña', usuariosController.restablecerContraseña.bind(usuariosController));
+router.post('/reenviar-activacion', validarReenvioActivacion, usuariosController.reenviarCodigoActivacion.bind(usuariosController));
 
-
-// Activación de cuenta - NUEVA RUTA
-router.post('/activar', usuariosController.activarCuenta);
-
-// Reenvío de código de activación (opcional)
-router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion);
+/**
+ * @swagger
+ * /api/usuarios/validar-codigo:
+ *   post:
+ *     summary: Validar código de activación (alternativo)
+ *     description: Método alternativo para validar código de activación
+ *     tags: [Usuarios]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - codigo
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email del usuario
+ *                 example: "juan.perez@epa.gov.co"
+ *               codigo:
+ *                 type: string
+ *                 pattern: "^[0-9]{6}$"
+ *                 description: Código de 6 dígitos a validar
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Código válido y cuenta activada
+ *       400:
+ *         description: Código inválido, expirado o cuenta ya activa
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/validar-codigo', validarActivacionCuenta, usuariosController.validarCodigoActivacion.bind(usuariosController));
 
 export default router;
