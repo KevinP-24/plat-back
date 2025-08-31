@@ -150,10 +150,9 @@ class UsuariosController {
   /**
    * Crea un nuevo usuario con sistema de activación por email
    */
-  async crearUsuario(req, res) {
+    async crearUsuario(req, res) {
     try {
       const { 
-        nombre_usuario, 
         email, 
         nombres, 
         apellidos, 
@@ -166,13 +165,6 @@ class UsuariosController {
       } = req.body;
 
       // Validaciones requeridas
-      if (!nombre_usuario || typeof nombre_usuario !== 'string' || nombre_usuario.trim().length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'El nombre de usuario es requerido'
-        });
-      }
-
       if (!email || typeof email !== 'string' || !email.includes('@')) {
         return res.status(400).json({
           success: false,
@@ -220,18 +212,6 @@ class UsuariosController {
         });
       }
 
-      // Verificar unicidad de nombre_usuario
-      const usuarioExiste = await sql`
-        SELECT id FROM public.usuarios WHERE nombre_usuario = ${nombre_usuario.trim()}
-      `;
-
-      if (usuarioExiste.length > 0) {
-        return res.status(409).json({
-          success: false,
-          message: 'Ya existe un usuario con ese nombre de usuario'
-        });
-      }
-
       // Verificar unicidad de email
       const emailExiste = await sql`
         SELECT id FROM public.usuarios WHERE email = ${email.trim().toLowerCase()}
@@ -251,7 +231,6 @@ class UsuariosController {
       // Crear usuario con activo = false (requiere activación)
       const nuevosUsuarios = await sql`
         INSERT INTO public.usuarios (
-          nombre_usuario, 
           email, 
           nombres, 
           apellidos, 
@@ -263,7 +242,6 @@ class UsuariosController {
           activo
         )
         VALUES (
-          ${nombre_usuario.trim()}, 
           ${email.trim().toLowerCase()}, 
           ${nombres.trim()}, 
           ${apellidos.trim()}, 
@@ -274,7 +252,7 @@ class UsuariosController {
           ${hashedPassword},
           false
         )
-        RETURNING id, nombre_usuario, email, nombres, apellidos, 
+        RETURNING id, email, nombres, apellidos, 
                   telefono, departamento, cargo, rol_id, activo, 
                   fecha_creacion, fecha_actualizacion
       `;
@@ -322,7 +300,6 @@ class UsuariosController {
         message: 'Usuario creado exitosamente. Se ha enviado un código de activación a tu email',
         data: {
           id: nuevoUsuario.id,
-          nombre_usuario: nuevoUsuario.nombre_usuario,
           email: nuevoUsuario.email,
           nombres: nuevoUsuario.nombres,
           apellidos: nuevoUsuario.apellidos,
