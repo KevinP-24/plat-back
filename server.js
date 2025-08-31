@@ -11,6 +11,7 @@ import { swaggerUi, swaggerSpec } from './config/swagger.js';
 //importar rutas de ENDPOINTS
 import rolesRoutes from './routes/rol.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Rutas
 app.use('/api/roles', rolesRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/auth', authRoutes);
 
 // Iniciar servidor
 app.listen(PORT, () => {

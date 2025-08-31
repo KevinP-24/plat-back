@@ -1,4 +1,4 @@
-const jwtUtils = require('../utils/jwt');
+import jwtUtils from '../utils/jwt.js';
 
 /**
  * Middleware de autenticación JWT
@@ -195,7 +195,7 @@ const checkTokenBlacklist = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   verifyToken,
   optionalAuth,
   verifyActiveUser,
