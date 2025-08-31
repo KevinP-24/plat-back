@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken'; 
 
 class JWTUtils {
   constructor() {
@@ -200,4 +200,4 @@ class JWTUtils {
 }
 
 // Exportar instancia única (Singleton)
-module.exports = new JWTUtils();
+export default new JWTUtils();
