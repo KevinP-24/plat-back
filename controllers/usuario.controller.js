@@ -150,10 +150,9 @@ class UsuariosController {
   /**
    * Crea un nuevo usuario con sistema de activación por email
    */
-  async crearUsuario(req, res) {
+    async crearUsuario(req, res) {
     try {
       const { 
-        nombre_usuario, 
         email, 
         nombres, 
         apellidos, 
@@ -166,13 +165,6 @@ class UsuariosController {
       } = req.body;
 
       // Validaciones requeridas
-      if (!nombre_usuario || typeof nombre_usuario !== 'string' || nombre_usuario.trim().length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'El nombre de usuario es requerido'
-        });
-      }
-
       if (!email || typeof email !== 'string' || !email.includes('@')) {
         return res.status(400).json({
           success: false,
@@ -220,18 +212,6 @@ class UsuariosController {
         });
       }
 
-      // Verificar unicidad de nombre_usuario
-      const usuarioExiste = await sql`
-        SELECT id FROM public.usuarios WHERE nombre_usuario = ${nombre_usuario.trim()}
-      `;
-
-      if (usuarioExiste.length > 0) {
-        return res.status(409).json({
-          success: false,
-          message: 'Ya existe un usuario con ese nombre de usuario'
-        });
-      }
-
       // Verificar unicidad de email
       const emailExiste = await sql`
         SELECT id FROM public.usuarios WHERE email = ${email.trim().toLowerCase()}
@@ -251,7 +231,6 @@ class UsuariosController {
       // Crear usuario con activo = false (requiere activación)
       const nuevosUsuarios = await sql`
         INSERT INTO public.usuarios (
-          nombre_usuario, 
           email, 
           nombres, 
           apellidos, 
@@ -263,7 +242,6 @@ class UsuariosController {
           activo
         )
         VALUES (
-          ${nombre_usuario.trim()}, 
           ${email.trim().toLowerCase()}, 
           ${nombres.trim()}, 
           ${apellidos.trim()}, 
@@ -274,7 +252,7 @@ class UsuariosController {
           ${hashedPassword},
           false
         )
-        RETURNING id, nombre_usuario, email, nombres, apellidos, 
+        RETURNING id, email, nombres, apellidos, 
                   telefono, departamento, cargo, rol_id, activo, 
                   fecha_creacion, fecha_actualizacion
       `;
@@ -322,7 +300,6 @@ class UsuariosController {
         message: 'Usuario creado exitosamente. Se ha enviado un código de activación a tu email',
         data: {
           id: nuevoUsuario.id,
-          nombre_usuario: nuevoUsuario.nombre_usuario,
           email: nuevoUsuario.email,
           nombres: nuevoUsuario.nombres,
           apellidos: nuevoUsuario.apellidos,
@@ -367,7 +344,6 @@ class UsuariosController {
     try {
       const { id } = req.params;
       const { 
-        nombre_usuario, 
         email, 
         nombres, 
         apellidos, 
@@ -393,7 +369,7 @@ class UsuariosController {
         });
       }
 
-      if (!nombre_usuario && !nombres && !apellidos && 
+      if (!nombres && !apellidos && 
           telefono === undefined && departamento === undefined && 
           cargo === undefined && !rol_id && activo === undefined) {
         return res.status(400).json({
@@ -428,25 +404,9 @@ class UsuariosController {
         }
       }
 
-      // Verificar unicidad de nombre_usuario si se va a actualizar
-      if (nombre_usuario) {
-        const usuarioExiste = await sql`
-          SELECT id FROM public.usuarios 
-          WHERE nombre_usuario = ${nombre_usuario.trim()} AND id != ${parseInt(id)}
-        `;
-
-        if (usuarioExiste.length > 0) {
-          return res.status(409).json({
-            success: false,
-            message: 'Ya existe otro usuario con ese nombre de usuario'
-          });
-        }
-      }
-
-      // Construir actualización dinámica (sin email)
+      // Construir actualización dinámica (sin email y sin nombre_usuario)
       const updateFields = {};
       
-      if (nombre_usuario !== undefined) updateFields.nombre_usuario = nombre_usuario.trim();
       if (nombres !== undefined) updateFields.nombres = nombres.trim();
       if (apellidos !== undefined) updateFields.apellidos = apellidos.trim();
       if (telefono !== undefined) updateFields.telefono = telefono || null;
@@ -461,7 +421,7 @@ class UsuariosController {
         UPDATE public.usuarios 
         SET ${sql(updateFields)}
         WHERE id = ${parseInt(id)}
-        RETURNING id, nombre_usuario, email, nombres, apellidos, 
+        RETURNING id, email, nombres, apellidos, 
                   telefono, departamento, cargo, rol_id, activo, 
                   ultimo_acceso, fecha_creacion, fecha_actualizacion
       `;
@@ -510,27 +470,72 @@ class UsuariosController {
         });
       }
 
-      const existeUsuario = await sql`
-        SELECT id FROM public.usuarios WHERE id = ${parseInt(id)}
+      // Verificar que el usuario existe y obtener información básica
+      const usuario = await sql`
+        SELECT id, email, nombres, apellidos, activo 
+        FROM public.usuarios 
+        WHERE id = ${parseInt(id)}
       `;
       
-      if (existeUsuario.length === 0) {
+      if (usuario.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'Usuario no encontrado'
         });
       }
 
+      const usuarioData = usuario[0];
+
+      // Verificar si ya está inactivo
+      if (!usuarioData.activo) {
+        return res.status(400).json({
+          success: false,
+          message: 'El usuario ya está desactivado'
+        });
+      }
+
+      // Prevenir auto-eliminación (opcional - por seguridad)
+      if (req.user && req.user.id === parseInt(id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'No puedes desactivar tu propia cuenta'
+        });
+      }
+
       // Soft delete - marcar como inactivo
-      await sql`
+      const usuarioActualizado = await sql`
         UPDATE public.usuarios 
         SET activo = false, fecha_actualizacion = CURRENT_TIMESTAMP 
         WHERE id = ${parseInt(id)}
+        RETURNING id, email, nombres, apellidos, activo, fecha_actualizacion
       `;
+
+      // Log de la acción para auditoría
+      console.log('Usuario desactivado:', {
+        usuario_desactivado: {
+          id: usuarioData.id,
+          email: usuarioData.email,
+          nombres: usuarioData.nombres,
+          apellidos: usuarioData.apellidos
+        },
+        accion_realizada_por: req.user ? {
+          id: req.user.id,
+          email: req.user.email
+        } : 'Sistema',
+        timestamp: new Date().toISOString()
+      });
 
       res.status(200).json({
         success: true,
-        message: 'Usuario eliminado exitosamente'
+        message: `Usuario ${usuarioData.nombres} ${usuarioData.apellidos} desactivado exitosamente`,
+        data: {
+          id: usuarioActualizado[0].id,
+          email: usuarioActualizado[0].email,
+          nombres: usuarioActualizado[0].nombres,
+          apellidos: usuarioActualizado[0].apellidos,
+          activo: usuarioActualizado[0].activo,
+          fecha_desactivacion: usuarioActualizado[0].fecha_actualizacion
+        }
       });
 
     } catch (error) {
@@ -541,7 +546,7 @@ class UsuariosController {
       });
     }
   }
-
+  
   /**
    * Actualiza el último acceso del usuario
    */
