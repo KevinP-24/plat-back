@@ -11,6 +11,7 @@ import { swaggerUi, swaggerSpec } from './config/swagger.js';
 import rolesRoutes from './routes/rol.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/roles', rolesRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // Iniciar servidor
 app.listen(PORT, () => {
