@@ -7,7 +7,7 @@ import emailService from '../utils/emailService.js'
  * Controlador para el manejo de usuarios - CRUD Esencial
  */
 class UsuariosController {
-  /**
+    /**
    * Obtiene todos los usuarios
    * ✅
    */
@@ -18,7 +18,6 @@ class UsuariosController {
       let baseQuery = sql`
         SELECT 
           u.id, 
-          u.nombre_usuario,
           u.email,
           u.nombres,
           u.apellidos,
@@ -54,8 +53,7 @@ class UsuariosController {
         conditions.push(sql`(
           LOWER(u.nombres) LIKE LOWER(${`%${search}%`}) OR 
           LOWER(u.apellidos) LIKE LOWER(${`%${search}%`}) OR 
-          LOWER(u.email) LIKE LOWER(${`%${search}%`}) OR
-          LOWER(u.nombre_usuario) LIKE LOWER(${`%${search}%`})
+          LOWER(u.email) LIKE LOWER(${`%${search}%`})
         )`);
       }
 
@@ -87,7 +85,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Obtiene un usuario por ID
    * ✅
