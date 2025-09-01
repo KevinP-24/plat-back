@@ -11,19 +11,19 @@ class AuthController {
      */
     async login(req, res) {
     try {
-        const { email, password, nombre_usuario } = req.body;
+        const { email, password } = req.body;
 
-        // Validar que se proporcione al menos uno: email o nombre_usuario
-        if ((!email && !nombre_usuario) || !password) {
+        // Validar que se proporcione email y contraseña
+        if (!email || !password) {
         return res.status(400).json({
             success: false,
-            message: 'Email/Usuario y contraseña son requeridos',
+            message: 'Email y contraseña son requeridos',
             error: 'MISSING_CREDENTIALS'
         });
         }
 
-        // Validar formato de email si se proporciona
-        if (email && (!email.includes('@') || typeof email !== 'string')) {
+        // Validar formato de email
+        if (!email.includes('@') || typeof email !== 'string') {
         return res.status(400).json({
             success: false,
             message: 'El formato del email no es válido',
@@ -40,22 +40,10 @@ class AuthController {
         });
         }
 
-        // Buscar usuario por email o nombre_usuario
-        let whereClause = '';
-        let searchValue = '';
-        
-        if (email) {
-        whereClause = 'u.email = $1';
-        searchValue = email.trim().toLowerCase();
-        } else {
-        whereClause = 'u.nombre_usuario = $1';
-        searchValue = nombre_usuario.trim();
-        }
-
+        // Buscar usuario por email
         const usuarios = await sql`
         SELECT 
             u.id,
-            u.nombre_usuario,
             u.email,
             u.nombres,
             u.apellidos,
@@ -71,7 +59,7 @@ class AuthController {
             r.activo as rol_activo
         FROM public.usuarios u
         LEFT JOIN public.roles r ON u.rol_id = r.id
-        WHERE ${email ? sql`u.email = ${searchValue}` : sql`u.nombre_usuario = ${searchValue}`}
+        WHERE u.email = ${email.trim().toLowerCase()}
         `;
 
         // Verificar si el usuario existe
@@ -79,7 +67,6 @@ class AuthController {
         // Log del intento fallido para auditoría
         console.warn('🚫 Intento de login con credenciales no encontradas:', {
             email: email || null,
-            nombre_usuario: nombre_usuario || null,
             ip: req.ip || 'unknown',
             user_agent: req.get('User-Agent') || 'unknown',
             timestamp: new Date().toISOString()
@@ -159,8 +146,7 @@ class AuthController {
             id: usuario.id,
             email: usuario.email,
             rol_id: usuario.rol_id,
-            rol_nombre: usuario.rol_nombre,
-            nombre_usuario: usuario.nombre_usuario
+            rol_nombre: usuario.rol_nombre
         };
 
         const accessToken = jwtUtils.generateToken(tokenPayload);
@@ -177,7 +163,6 @@ class AuthController {
         console.log('✅ Login exitoso:', {
             user_id: usuario.id,
             email: usuario.email,
-            nombre_usuario: usuario.nombre_usuario,
             rol: usuario.rol_nombre,
             ip: req.ip || 'unknown',
             user_agent: req.get('User-Agent') || 'unknown',
@@ -191,7 +176,6 @@ class AuthController {
             data: {
             user: {
                 id: usuario.id,
-                nombre_usuario: usuario.nombre_usuario,
                 email: usuario.email,
                 nombres: usuario.nombres,
                 apellidos: usuario.apellidos,
@@ -235,7 +219,6 @@ class AuthController {
         stack: error.stack,
         body: {
             email: req.body.email || null,
-            nombre_usuario: req.body.nombre_usuario || null,
             // No registrar la contraseña por seguridad
         },
         timestamp: new Date().toISOString()
@@ -263,7 +246,6 @@ class AuthController {
         console.log('📤 Logout exitoso:', {
         user_id: usuario.id,
         email: usuario.email,
-        nombre_usuario: usuario.nombre_usuario,
         ip: req.ip || 'unknown',
         timestamp: new Date().toISOString()
         });
@@ -303,7 +285,6 @@ class AuthController {
         const usuarioActualizado = await sql`
         SELECT 
             u.id,
-            u.nombre_usuario,
             u.email,
             u.nombres,
             u.apellidos,
@@ -335,7 +316,6 @@ class AuthController {
         data: {
             user: {
             id: user.id,
-            nombre_usuario: user.nombre_usuario,
             email: user.email,
             nombres: user.nombres,
             apellidos: user.apellidos,
