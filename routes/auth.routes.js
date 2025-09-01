@@ -22,36 +22,25 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Email del usuario (alternativo a nombre_usuario)
+ *                 description: Email del usuario
  *                 example: "admin@epa.gov.co"
- *               nombre_usuario:
- *                 type: string
- *                 description: Nombre de usuario (alternativo a email)
- *                 example: "admin_epa"
  *               password:
  *                 type: string
  *                 minLength: 1
  *                 description: Contraseña del usuario
  *                 example: "password123"
- *             required:
- *               - password
- *             anyOf:
- *               - required: [email]
- *               - required: [nombre_usuario]
  *           examples:
  *             login_con_email:
  *               summary: Login con email
  *               value:
  *                 email: "admin@epa.gov.co"
- *                 password: "password123"
- *             login_con_usuario:
- *               summary: Login con nombre de usuario
- *               value:
- *                 nombre_usuario: "admin_epa"
  *                 password: "password123"
  *     responses:
  *       200:
@@ -76,9 +65,6 @@ const router = Router();
  *                         id:
  *                           type: integer
  *                           example: 1
- *                         nombre_usuario:
- *                           type: string
- *                           example: "admin_epa"
  *                         email:
  *                           type: string
  *                           example: "admin@epa.gov.co"
@@ -155,7 +141,7 @@ const router = Router();
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Email/Usuario y contraseña son requeridos"
+ *                   example: "Email y contraseña son requeridos"
  *                 error:
  *                   type: string
  *                   example: "MISSING_CREDENTIALS"
@@ -260,9 +246,6 @@ router.post('/logout', verifyToken, authController.logout);
  *                         id:
  *                           type: integer
  *                           example: 1
- *                         nombre_usuario:
- *                           type: string
- *                           example: "admin_epa"
  *                         email:
  *                           type: string
  *                           example: "admin@epa.gov.co"
@@ -307,9 +290,6 @@ router.post('/logout', verifyToken, authController.logout);
  *                             role:
  *                               type: string
  *                               example: "administrador"
- *                             username:
- *                               type: string
- *                               example: "admin_epa"
  *                             issued_at:
  *                               type: string
  *                               format: date-time

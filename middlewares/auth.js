@@ -26,7 +26,6 @@ const verifyToken = async (req, res, next) => {
       email: decoded.email,
       rol_id: decoded.rol_id,
       rol_nombre: decoded.rol_nombre,
-      nombre_usuario: decoded.nombre_usuario,
       token_info: jwtUtils.getTokenInfo(decoded)
     };
 
@@ -95,7 +94,6 @@ const optionalAuth = async (req, res, next) => {
           email: decoded.email,
           rol_id: decoded.rol_id,
           rol_nombre: decoded.rol_nombre,
-          nombre_usuario: decoded.nombre_usuario,
           token_info: jwtUtils.getTokenInfo(decoded)
         };
         
