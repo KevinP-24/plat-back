@@ -1,11 +1,12 @@
 import express from 'express';
 import TicketsController from '../controllers/ticket.controller.js';
+import { verifyToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 const ticketsController = new TicketsController();
 
 /**
-* @swagger
+ * @swagger
  * /api/tickets:
  *   post:
  *     summary: Crear un nuevo ticket de soporte
@@ -175,6 +176,6 @@ const ticketsController = new TicketsController();
  *                   type: string
  *                   example: "INTERNAL_SERVER_ERROR"
  */
-router.post('/', ticketsController.crearTicket);
+router.post('/', verifyToken, ticketsController.crearTicket);
 
 export default router;

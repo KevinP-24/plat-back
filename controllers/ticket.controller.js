@@ -82,8 +82,8 @@ class TicketsController {
 
       // Verificar que la categoría existe y está activa
       const categoriaExiste = await sql`
-        SELECT id, nombre FROM public.categorias_tickets 
-        WHERE id = ${parseInt(categoria_id)} AND activo = true
+        SELECT id, nombre FROM public.categorias_ticket
+        WHERE id = ${parseInt(categoria_id)}
       `;
 
       if (categoriaExiste.length === 0) {
@@ -96,8 +96,8 @@ class TicketsController {
 
       // Verificar que la prioridad existe y está activa
       const prioridadExiste = await sql`
-        SELECT id, nombre FROM public.prioridades_tickets 
-        WHERE id = ${parseInt(prioridad_id)} AND activo = true
+        SELECT id, nombre FROM public.prioridades
+        WHERE id = ${parseInt(prioridad_id)}
       `;
 
       if (prioridadExiste.length === 0) {
@@ -112,7 +112,7 @@ class TicketsController {
       if (equipo_afectado_id && !isNaN(parseInt(equipo_afectado_id))) {
         const equipoExiste = await sql`
           SELECT id, nombre FROM public.equipos 
-          WHERE id = ${parseInt(equipo_afectado_id)} AND activo = true
+          WHERE id = ${parseInt(equipo_afectado_id)}
         `;
 
         if (equipoExiste.length === 0) {
@@ -147,9 +147,8 @@ class TicketsController {
 
       // Obtener el estado inicial (debe ser "Pendiente" o similar)
       const estadoInicial = await sql`
-        SELECT id FROM public.estados_tickets 
-        WHERE nombre = 'Pendiente' AND activo = true
-        LIMIT 1
+        SELECT id FROM public.estados_ticket
+        WHERE nombre = 'Pendiente' LIMIT 1
       `;
 
       if (estadoInicial.length === 0) {
@@ -215,9 +214,9 @@ class TicketsController {
           eq.nombre as equipo_afectado,
           t.fecha_creacion
         FROM public.tickets t
-        LEFT JOIN public.categorias_tickets c ON t.categoria_id = c.id
-        LEFT JOIN public.prioridades_tickets p ON t.prioridad_id = p.id
-        LEFT JOIN public.estados_tickets e ON t.estado_id = e.id
+        LEFT JOIN public.categorias_ticket c ON t.categoria_id = c.id
+        LEFT JOIN public.prioridades p ON t.prioridad_id = p.id
+        LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
         LEFT JOIN public.usuarios u ON t.usuario_solicitante_id = u.id
         LEFT JOIN public.equipos eq ON t.equipo_afectado_id = eq.id
         WHERE t.id = ${ticket.id}
