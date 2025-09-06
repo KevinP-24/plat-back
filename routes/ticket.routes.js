@@ -510,4 +510,327 @@ router.post('/', verifyToken, ticketsController.crearTicket);
  */
 router.get('/', verifyToken, ticketsController.obtenerTickets);
 
+/**
+ * @swagger
+ * /api/tickets/{id}/estado:
+ *   patch:
+ *     tags:
+ *       - Tickets
+ *     summary: Cambiar estado de un ticket
+ *     description: |
+ *       Cambia el estado de un ticket existente según los permisos del usuario:
+ *       - **Técnico**: Solo puede cambiar estado de tickets asignados a él
+ *       - **Administrador**: Puede cambiar estado de cualquier ticket
+ *       - **Usuario Final**: No tiene permisos para cambiar estados
+ *       
+ *       **Transiciones de estado permitidas:**
+ *       - Pendiente → En Progreso, Cancelado, Asignado
+ *       - En Progreso → Resuelto, Pendiente, Cancelado
+ *       - Resuelto → Cerrado, En Progreso
+ *       - Cerrado → Reabierto (solo admin)
+ *       - Cancelado → Pendiente (solo admin)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID del ticket a actualizar
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nuevo_estado_id
+ *             properties:
+ *               nuevo_estado_id:
+ *                 type: integer
+ *                 description: ID del nuevo estado del ticket
+ *                 example: 2
+ *               comentario_tecnico:
+ *                 type: string
+ *                 description: Comentario opcional del técnico sobre el cambio
+ *                 maxLength: 500
+ *                 example: "Problema identificado y solucionado exitosamente"
+ *               motivo_cambio:
+ *                 type: string
+ *                 description: Motivo del cambio de estado
+ *                 maxLength: 200
+ *                 example: "Resolución completada"
+ *           examples:
+ *             cambio_a_progreso:
+ *               summary: Cambiar a En Progreso
+ *               value:
+ *                 nuevo_estado_id: 2
+ *                 comentario_tecnico: "Iniciando trabajo en el problema reportado"
+ *                 motivo_cambio: "Ticket asignado y trabajo iniciado"
+ *             cambio_a_resuelto:
+ *               summary: Cambiar a Resuelto
+ *               value:
+ *                 nuevo_estado_id: 3
+ *                 comentario_tecnico: "Problema solucionado - impresora reparada"
+ *                 motivo_cambio: "Resolución exitosa"
+ *             cambio_a_cerrado:
+ *               summary: Cambiar a Cerrado
+ *               value:
+ *                 nuevo_estado_id: 4
+ *                 motivo_cambio: "Ticket cerrado - usuario confirma solución"
+ *     responses:
+ *       200:
+ *         description: Estado del ticket cambiado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Estado del ticket cambiado exitosamente de \"En Progreso\" a \"Resuelto\""
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticket:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         numero_ticket:
+ *                           type: string
+ *                           example: "TICK-20240301-0001"
+ *                         titulo:
+ *                           type: string
+ *                           example: "Problema con impresora"
+ *                         descripcion:
+ *                           type: string
+ *                           example: "La impresora no responde"
+ *                         categoria:
+ *                           type: string
+ *                           example: "Hardware"
+ *                         prioridad:
+ *                           type: string
+ *                           example: "Media"
+ *                         prioridad_nivel:
+ *                           type: integer
+ *                           example: 2
+ *                         prioridad_color:
+ *                           type: string
+ *                           example: "#FFA500"
+ *                         estado:
+ *                           type: string
+ *                           example: "Resuelto"
+ *                         estado_color:
+ *                           type: string
+ *                           example: "#008000"
+ *                         usuario_solicitante:
+ *                           type: string
+ *                           example: "Juan Pérez"
+ *                         usuario_email:
+ *                           type: string
+ *                           example: "juan.perez@epa.gov.co"
+ *                         tecnico_asignado:
+ *                           type: string
+ *                           example: "María García"
+ *                         tecnico_email:
+ *                           type: string
+ *                           example: "maria.garcia@epa.gov.co"
+ *                         equipo_afectado:
+ *                           type: string
+ *                           nullable: true
+ *                           example: "Impresora HP LaserJet"
+ *                         fecha_creacion:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-03-01T08:30:00Z"
+ *                         fecha_asignacion:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                           example: "2024-03-01T09:15:00Z"
+ *                         fecha_resolucion:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                           example: "2024-03-01T14:30:00Z"
+ *                         fecha_cierre:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                           example: null
+ *                         fecha_actualizacion:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-03-01T14:30:00Z"
+ *                         horas_transcurridas:
+ *                           type: number
+ *                           example: 6.0
+ *                         es_urgente:
+ *                           type: boolean
+ *                           example: false
+ *                     cambio_realizado:
+ *                       type: object
+ *                       properties:
+ *                         estado_anterior:
+ *                           type: string
+ *                           example: "En Progreso"
+ *                         estado_nuevo:
+ *                           type: string
+ *                           example: "Resuelto"
+ *                         fecha_cambio:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-03-01T14:30:00Z"
+ *                         realizado_por:
+ *                           type: string
+ *                           example: "Tecnico"
+ *                         comentario_incluido:
+ *                           type: boolean
+ *                           example: true
+ *                     siguiente_paso:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "El ticket está listo para ser cerrado por un administrador"
+ *       400:
+ *         description: Datos de entrada inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               ticket_id_invalido:
+ *                 summary: ID de ticket inválido
+ *                 value:
+ *                   success: false
+ *                   message: "ID de ticket inválido"
+ *                   error: "TICKET_ID_INVALIDO"
+ *               estado_requerido:
+ *                 summary: Estado requerido
+ *                 value:
+ *                   success: false
+ *                   message: "El nuevo estado es requerido y debe ser válido"
+ *                   error: "ESTADO_REQUERIDO"
+ *               estado_duplicado:
+ *                 summary: Estado duplicado
+ *                 value:
+ *                   success: false
+ *                   message: "El ticket ya se encuentra en estado \"Resuelto\""
+ *                   error: "ESTADO_DUPLICADO"
+ *               transicion_invalida:
+ *                 summary: Transición de estado inválida
+ *                 value:
+ *                   success: false
+ *                   message: "No se puede cambiar de \"Cerrado\" a \"En Progreso\""
+ *                   error: "TRANSICION_INVALIDA"
+ *               estado_no_encontrado:
+ *                 summary: Estado no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "El estado especificado no existe"
+ *                   error: "ESTADO_NO_ENCONTRADO"
+ *       401:
+ *         description: Usuario no autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Usuario no autenticado"
+ *                 error:
+ *                   type: string
+ *                   example: "NO_AUTENTICADO"
+ *       403:
+ *         description: Permisos insuficientes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               usuario_sin_permisos:
+ *                 summary: Usuario final sin permisos
+ *                 value:
+ *                   success: false
+ *                   message: "Los usuarios finales no pueden cambiar el estado de tickets"
+ *                   error: "PERMISOS_INSUFICIENTES"
+ *               ticket_no_asignado:
+ *                 summary: Ticket no asignado al técnico
+ *                 value:
+ *                   success: false
+ *                   message: "Solo puedes cambiar el estado de tickets asignados a ti"
+ *                   error: "TICKET_NO_ASIGNADO"
+ *               estado_especial_admin:
+ *                 summary: Estado especial solo para admin
+ *                 value:
+ *                   success: false
+ *                   message: "Solo los administradores pueden cambiar tickets a estado \"Cancelado\""
+ *                   error: "PERMISOS_ESTADO_ESPECIAL"
+ *               ticket_cerrado:
+ *                 summary: Ticket cerrado solo admin puede modificar
+ *                 value:
+ *                   success: false
+ *                   message: "Solo los administradores pueden modificar tickets cerrados"
+ *                   error: "TICKET_CERRADO"
+ *       404:
+ *         description: Ticket no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Ticket no encontrado"
+ *                 error:
+ *                   type: string
+ *                   example: "TICKET_NO_ENCONTRADO"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error interno del servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "INTERNAL_SERVER_ERROR"
+ */
+router.patch('/:id/estado', verifyToken, ticketsController.cambiarEstadoTicket);
+
 export default router;
