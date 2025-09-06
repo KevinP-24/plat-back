@@ -482,11 +482,412 @@ router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bi
  */
 router.post('/restablecer-contraseña', usuariosController.restablecerContraseña.bind(usuariosController));
 
-
-// Activación de cuenta - NUEVA RUTA
+/**
+ * @swagger
+ * /api/usuarios/activar:
+ *   post:
+ *     tags:
+ *       - Usuarios
+ *     summary: Activar cuenta de usuario
+ *     description: |
+ *       Activa la cuenta de un usuario mediante código de verificación de 6 dígitos.
+ *       Este endpoint permite activar cuentas de usuarios registrados en el sistema PLAT-EPA
+ *       utilizando el código de activación enviado por email.
+ *     operationId: activarCuenta
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - codigo
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email del usuario a activar
+ *                 example: usuario@epa.gov.co
+ *               codigo:
+ *                 type: string
+ *                 pattern: "^[0-9]{6}$"
+ *                 description: Código de activación de 6 dígitos
+ *                 example: "123456"
+ *           examples:
+ *             activacion_exitosa:
+ *               summary: Activación exitosa
+ *               value:
+ *                 email: "tecnico@epa.gov.co"
+ *                 codigo: "784521"
+ *             codigo_invalido:
+ *               summary: Código inválido
+ *               value:
+ *                 email: "usuario@epa.gov.co"
+ *                 codigo: "000000"
+ *     responses:
+ *       200:
+ *         description: Cuenta activada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "¡Felicitaciones Juan! Tu cuenta ha sido activada exitosamente. Ya puedes iniciar sesión."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           description: ID único del usuario
+ *                           example: 123
+ *                         email:
+ *                           type: string
+ *                           format: email
+ *                           description: Email del usuario
+ *                           example: "juan.perez@epa.gov.co"
+ *                         nombres:
+ *                           type: string
+ *                           description: Nombres del usuario
+ *                           example: "Juan Carlos"
+ *                         apellidos:
+ *                           type: string
+ *                           description: Apellidos del usuario
+ *                           example: "Pérez García"
+ *                         activo:
+ *                           type: boolean
+ *                           description: Estado de activación de la cuenta
+ *                           example: true
+ *                         rol:
+ *                           type: string
+ *                           description: Rol del usuario en el sistema
+ *                           enum: [Administrador, Técnico, Usuario Final]
+ *                           example: "Técnico"
+ *                     activacion:
+ *                       type: object
+ *                       properties:
+ *                         fecha_activacion:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Fecha y hora de la activación
+ *                           example: "2025-09-06T10:30:00.000Z"
+ *                         email_confirmacion_enviado:
+ *                           type: boolean
+ *                           description: Indica si se envió email de confirmación
+ *                           example: true
+ *                         puede_iniciar_sesion:
+ *                           type: boolean
+ *                           description: Indica si puede iniciar sesión inmediatamente
+ *                           example: true
+ *       400:
+ *         description: Error en los datos de entrada o validación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *                   enum: 
+ *                     - INVALID_EMAIL
+ *                     - INVALID_CODE_FORMAT
+ *                     - ACCOUNT_ALREADY_ACTIVE
+ *                     - INVALID_OR_USED_CODE
+ *                     - CODE_EXPIRED
+ *                 data:
+ *                   type: object
+ *                   nullable: true
+ *             examples:
+ *               email_invalido:
+ *                 summary: Email inválido
+ *                 value:
+ *                   success: false
+ *                   message: "El email es requerido y debe ser válido"
+ *                   error: "INVALID_EMAIL"
+ *               codigo_formato_invalido:
+ *                 summary: Formato de código inválido
+ *                 value:
+ *                   success: false
+ *                   message: "El código de activación debe tener exactamente 6 dígitos"
+ *                   error: "INVALID_CODE_FORMAT"
+ *               cuenta_ya_activa:
+ *                 summary: Cuenta ya activada
+ *                 value:
+ *                   success: false
+ *                   message: "Esta cuenta ya se encuentra activa. Puedes iniciar sesión normalmente"
+ *                   error: "ACCOUNT_ALREADY_ACTIVE"
+ *               codigo_incorrecto:
+ *                 summary: Código incorrecto o usado
+ *                 value:
+ *                   success: false
+ *                   message: "El código de activación es incorrecto o ya ha sido utilizado"
+ *                   error: "INVALID_OR_USED_CODE"
+ *               codigo_expirado:
+ *                 summary: Código expirado
+ *                 value:
+ *                   success: false
+ *                   message: "El código de activación ha expirado. Solicita un nuevo código"
+ *                   error: "CODE_EXPIRED"
+ *                   data:
+ *                     expiro_en: "2025-09-06T09:30:00.000Z"
+ *                     puede_reenviar: true
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "No se encontró ninguna cuenta asociada a este email"
+ *                 error:
+ *                   type: string
+ *                   example: "USER_NOT_FOUND"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *                   enum:
+ *                     - DATABASE_ERROR
+ *                     - INTERNAL_SERVER_ERROR
+ *             examples:
+ *               error_base_datos:
+ *                 summary: Error de base de datos
+ *                 value:
+ *                   success: false
+ *                   message: "Error interno al activar la cuenta. Intenta nuevamente"
+ *                   error: "DATABASE_ERROR"
+ *               error_interno:
+ *                 summary: Error interno general
+ *                 value:
+ *                   success: false
+ *                   message: "Error interno del servidor. Por favor, intenta más tarde"
+ *                   error: "INTERNAL_SERVER_ERROR"
+ */
 router.post('/activar', usuariosController.activarCuenta);
 
-// Reenvío de código de activación (opcional)
+/**
+ * @swagger
+ * /api/usuarios/reenviar-codigo:
+ *   post:
+ *     tags:
+ *       - Usuarios
+ *     summary: Reenviar código de activación
+ *     description: |
+ *       Reenvía un nuevo código de activación para cuentas no activadas del sistema PLAT-EPA.
+ *       Este endpoint permite a usuarios que no han activado su cuenta solicitar un nuevo código
+ *       de 6 dígitos por email. Incluye protección contra spam con límite de 5 códigos por día.
+ *     operationId: reenviarCodigoActivacion
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email del usuario que necesita reenvío del código
+ *                 example: usuario@epa.gov.co
+ *           examples:
+ *             reenvio_exitoso:
+ *               summary: Solicitud de reenvío válida
+ *               value:
+ *                 email: "tecnico@epa.gov.co"
+ *             cuenta_activa:
+ *               summary: Cuenta ya activada
+ *               value:
+ *                 email: "admin@epa.gov.co"
+ *     responses:
+ *       200:
+ *         description: Código de activación reenviado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Se ha enviado un nuevo código de activación a tu email"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       description: Email al que se envió el código
+ *                       example: "usuario@epa.gov.co"
+ *                     codigo_enviado:
+ *                       type: boolean
+ *                       description: Indica si el email fue enviado exitosamente
+ *                       example: true
+ *             example:
+ *               success: true
+ *               message: "Se ha enviado un nuevo código de activación a tu email"
+ *               data:
+ *                 email: "tecnico@epa.gov.co"
+ *                 codigo_enviado: true
+ *       400:
+ *         description: Error en los datos de entrada o cuenta ya activa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *             examples:
+ *               email_invalido:
+ *                 summary: Email inválido o faltante
+ *                 value:
+ *                   success: false
+ *                   message: "El email es requerido y debe ser válido"
+ *               cuenta_ya_activa:
+ *                 summary: Cuenta ya está activada
+ *                 value:
+ *                   success: false
+ *                   message: "Esta cuenta ya está activada"
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "No se encontró una cuenta con ese email"
+ *             example:
+ *               success: false
+ *               message: "No se encontró una cuenta con ese email"
+ *       429:
+ *         description: Límite de reenvíos excedido (Too Many Requests)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Has alcanzado el límite de códigos por día. Intenta mañana"
+ *             example:
+ *               success: false
+ *               message: "Has alcanzado el límite de códigos por día. Intenta mañana"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error interno del servidor"
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ * 
+ * components:
+ *   schemas:
+ *     ReenviarCodigoRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: Email del usuario para reenvío
+ *           example: "usuario@epa.gov.co"
+ *       example:
+ *         email: "tecnico@epa.gov.co"
+ * 
+ *     ReenviarCodigoResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           description: Indica si la operación fue exitosa
+ *         message:
+ *           type: string
+ *           description: Mensaje descriptivo del resultado
+ *         data:
+ *           type: object
+ *           properties:
+ *             email:
+ *               type: string
+ *               format: email
+ *               description: Email al que se envió el código
+ *             codigo_enviado:
+ *               type: boolean
+ *               description: Indica si el email fue enviado exitosamente
+ *       example:
+ *         success: true
+ *         message: "Se ha enviado un nuevo código de activación a tu email"
+ *         data:
+ *           email: "usuario@epa.gov.co"
+ *           codigo_enviado: true
+ * 
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: false
+ *         message:
+ *           type: string
+ *           description: Descripción del error
+ *       example:
+ *         success: false
+ *         message: "Descripción del error"
+ */
 router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion);
 
 export default router;
