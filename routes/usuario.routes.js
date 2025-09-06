@@ -551,43 +551,11 @@ router.post('/activar', validarActivacionCuenta, usuariosController.activarCuent
  */
 router.post('/reenviar-activacion', validarReenvioActivacion, usuariosController.reenviarCodigoActivacion.bind(usuariosController));
 
-/**
- * @swagger
- * /api/usuarios/validar-codigo:
- *   post:
- *     summary: Validar código de activación (alternativo)
- *     description: Método alternativo para validar código de activación
- *     tags: [Usuarios]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - codigo
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 description: Email del usuario
- *                 example: "juan.perez@epa.gov.co"
- *               codigo:
- *                 type: string
- *                 pattern: "^[0-9]{6}$"
- *                 description: Código de 6 dígitos a validar
- *                 example: "123456"
- *     responses:
- *       200:
- *         description: Código válido y cuenta activada
- *       400:
- *         description: Código inválido, expirado o cuenta ya activa
- *       404:
- *         description: Usuario no encontrado
- *       500:
- *         description: Error interno del servidor
- */
-router.post('/validar-codigo', validarActivacionCuenta, usuariosController.validarCodigoActivacion.bind(usuariosController));
+
+// Activación de cuenta - NUEVA RUTA
+router.post('/activar', usuariosController.activarCuenta);
+
+// Reenvío de código de activación (opcional)
+router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion);
 
 export default router;

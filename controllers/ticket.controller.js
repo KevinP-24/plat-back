@@ -82,8 +82,8 @@ class TicketsController {
 
       // Verificar que la categoría existe y está activa
       const categoriaExiste = await sql`
-        SELECT id, nombre FROM public.categorias_tickets 
-        WHERE id = ${parseInt(categoria_id)} AND activo = true
+        SELECT id, nombre FROM public.categorias_ticket
+        WHERE id = ${parseInt(categoria_id)}
       `;
 
       if (categoriaExiste.length === 0) {
@@ -96,8 +96,8 @@ class TicketsController {
 
       // Verificar que la prioridad existe y está activa
       const prioridadExiste = await sql`
-        SELECT id, nombre FROM public.prioridades_tickets 
-        WHERE id = ${parseInt(prioridad_id)} AND activo = true
+        SELECT id, nombre FROM public.prioridades
+        WHERE id = ${parseInt(prioridad_id)}
       `;
 
       if (prioridadExiste.length === 0) {
@@ -112,7 +112,7 @@ class TicketsController {
       if (equipo_afectado_id && !isNaN(parseInt(equipo_afectado_id))) {
         const equipoExiste = await sql`
           SELECT id, nombre FROM public.equipos 
-          WHERE id = ${parseInt(equipo_afectado_id)} AND activo = true
+          WHERE id = ${parseInt(equipo_afectado_id)}
         `;
 
         if (equipoExiste.length === 0) {
@@ -147,9 +147,8 @@ class TicketsController {
 
       // Obtener el estado inicial (debe ser "Pendiente" o similar)
       const estadoInicial = await sql`
-        SELECT id FROM public.estados_tickets 
-        WHERE nombre = 'Pendiente' AND activo = true
-        LIMIT 1
+        SELECT id FROM public.estados_ticket
+        WHERE nombre = 'Pendiente' LIMIT 1
       `;
 
       if (estadoInicial.length === 0) {
@@ -215,9 +214,9 @@ class TicketsController {
           eq.nombre as equipo_afectado,
           t.fecha_creacion
         FROM public.tickets t
-        LEFT JOIN public.categorias_tickets c ON t.categoria_id = c.id
-        LEFT JOIN public.prioridades_tickets p ON t.prioridad_id = p.id
-        LEFT JOIN public.estados_tickets e ON t.estado_id = e.id
+        LEFT JOIN public.categorias_ticket c ON t.categoria_id = c.id
+        LEFT JOIN public.prioridades p ON t.prioridad_id = p.id
+        LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
         LEFT JOIN public.usuarios u ON t.usuario_solicitante_id = u.id
         LEFT JOIN public.equipos eq ON t.equipo_afectado_id = eq.id
         WHERE t.id = ${ticket.id}
@@ -264,6 +263,687 @@ class TicketsController {
           success: false,
           message: 'Referencia inválida a datos relacionados',
           error: 'FOREIGN_KEY_ERROR'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
+      });
+    }
+  }
+
+/**
+   * Obtiene los tickets según el rol del usuario autenticado
+   * RF-XX: Consulta de Tickets por Rol
+   * Endpoint: GET /api/tickets
+   */
+  async obtenerTickets(req, res) {
+    try {
+      // Validar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      const usuario_id = req.user.id;
+      const usuario_rol = req.user.rol_nombre || req.user.rol; // Usar rol_nombre del token
+
+      // Validar que el rol esté disponible
+      if (!usuario_rol) {
+        return res.status(401).json({
+          success: false,
+          message: 'Información de rol no disponible en el token',
+          error: 'ROL_NO_DISPONIBLE'
+        });
+      }
+
+      // Parámetros de consulta para paginación y filtros
+      const {
+        page = 1,
+        limit = 10,
+        estado_id,
+        categoria_id,
+        prioridad_id,
+        fecha_desde,
+        fecha_hasta,
+        orden = 'fecha_creacion',
+        direccion = 'DESC'
+      } = req.query;
+
+      // Validar parámetros de paginación
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+
+      if (isNaN(pageNum) || pageNum < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'El número de página debe ser un entero positivo',
+          error: 'PAGINA_INVALIDA'
+        });
+      }
+
+      if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'El límite debe ser un entero entre 1 y 100',
+          error: 'LIMITE_INVALIDO'
+        });
+      }
+
+      const offset = (pageNum - 1) * limitNum;
+
+      // Validar parámetros de ordenamiento
+      const ordenesPermitidos = [
+        'fecha_creacion', 'titulo', 'prioridad_nivel', 'estado', 'numero_ticket'
+      ];
+      const direccionesPermitidas = ['ASC', 'DESC'];
+
+      if (!ordenesPermitidos.includes(orden)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Campo de ordenamiento no válido',
+          error: 'ORDEN_INVALIDO'
+        });
+      }
+
+      if (!direccionesPermitidas.includes(direccion.toUpperCase())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Dirección de ordenamiento no válida',
+          error: 'DIRECCION_INVALIDA'
+        });
+      }
+
+      // Construir filtros según el rol del usuario
+      let whereConditions = [];
+
+      // Filtro principal por rol
+      switch (usuario_rol.toLowerCase()) {
+        case 'usuario_final':
+        case 'usuario':
+          // Usuario final: solo sus propios tickets
+          whereConditions.push(`t.usuario_solicitante_id = ${usuario_id}`);
+          break;
+
+        case 'tecnico':
+        case 'tecnico_soporte':
+          // Técnico: solo tickets asignados a él
+          whereConditions.push(`t.tecnico_asignado_id = ${usuario_id}`);
+          break;
+
+        case 'administrador':
+        case 'admin':
+          // Administrador: todos los tickets (sin filtro adicional)
+          break;
+
+        default:
+          return res.status(403).json({
+            success: false,
+            message: 'Rol de usuario no reconocido',
+            error: 'ROL_INVALIDO'
+          });
+      }
+
+      // Filtros adicionales opcionales
+      if (estado_id && !isNaN(parseInt(estado_id))) {
+        whereConditions.push(`t.estado_id = ${parseInt(estado_id)}`);
+      }
+
+      if (categoria_id && !isNaN(parseInt(categoria_id))) {
+        whereConditions.push(`t.categoria_id = ${parseInt(categoria_id)}`);
+      }
+
+      if (prioridad_id && !isNaN(parseInt(prioridad_id))) {
+        whereConditions.push(`t.prioridad_id = ${parseInt(prioridad_id)}`);
+      }
+
+      if (fecha_desde) {
+        whereConditions.push(`t.fecha_creacion >= '${fecha_desde}'`);
+      }
+
+      if (fecha_hasta) {
+        whereConditions.push(`t.fecha_creacion <= '${fecha_hasta}'`);
+      }
+
+      // Construir cláusula WHERE
+      const whereClause = whereConditions.length > 0 
+        ? 'WHERE ' + whereConditions.join(' AND ')
+        : '';
+
+      // Mapear campo de ordenamiento
+      let campoOrden;
+      switch (orden) {
+        case 'prioridad_nivel':
+          campoOrden = 'p.nivel';
+          break;
+        case 'estado':
+          campoOrden = 'e.nombre';
+          break;
+        default:
+          campoOrden = `t.${orden}`;
+      }
+
+      // Consulta principal con toda la información
+      const ticketsQuery = `
+        SELECT 
+          t.id,
+          t.numero_ticket,
+          t.titulo,
+          t.descripcion,
+          c.nombre as categoria,
+          p.nombre as prioridad,
+          p.nivel as prioridad_nivel,
+          e.nombre as estado,
+          us.nombres || ' ' || us.apellidos as usuario_solicitante,
+          us.email as usuario_email,
+          ut.nombres || ' ' || ut.apellidos as tecnico_asignado,
+          ut.email as tecnico_email,
+          eq.nombre as equipo_afectado,
+          t.fecha_creacion,
+          t.fecha_asignacion,
+          t.fecha_resolucion,
+          t.fecha_cierre,
+          -- Calcular tiempo transcurrido
+          CASE 
+            WHEN t.fecha_cierre IS NOT NULL THEN 
+              EXTRACT(EPOCH FROM (t.fecha_cierre - t.fecha_creacion))/3600
+            ELSE 
+              EXTRACT(EPOCH FROM (NOW() - t.fecha_creacion))/3600
+          END as horas_transcurridas
+        FROM public.tickets t
+        LEFT JOIN public.categorias_ticket c ON t.categoria_id = c.id
+        LEFT JOIN public.prioridades p ON t.prioridad_id = p.id
+        LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
+        LEFT JOIN public.usuarios us ON t.usuario_solicitante_id = us.id
+        LEFT JOIN public.usuarios ut ON t.tecnico_asignado_id = ut.id
+        LEFT JOIN public.equipos eq ON t.equipo_afectado_id = eq.id
+        ${whereClause}
+        ORDER BY ${campoOrden} ${direccion.toUpperCase()}
+        LIMIT ${limitNum} OFFSET ${offset}
+      `;
+
+      // Consulta para contar total de registros
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM public.tickets t
+        ${whereClause}
+      `;
+
+      // Ejecutar ambas consultas
+      const [tickets, totalResult] = await Promise.all([
+        sql.unsafe(ticketsQuery),
+        sql.unsafe(countQuery)
+      ]);
+
+      const total = parseInt(totalResult[0].total);
+      const totalPages = Math.ceil(total / limitNum);
+
+      // Formatear datos de respuesta
+      const ticketsFormateados = tickets.map(ticket => ({
+        ...ticket,
+        horas_transcurridas: Math.round(ticket.horas_transcurridas * 100) / 100, // 2 decimales
+        es_urgente: ticket.prioridad_nivel === 1 && ticket.horas_transcurridas > 24,
+        puede_editar: usuario_rol.toLowerCase() === 'administrador' || usuario_rol.toLowerCase() === 'admin' ||
+                     (usuario_rol.toLowerCase() === 'tecnico' && ticket.tecnico_asignado && 
+                      usuario_id.toString() === ticket.tecnico_asignado.toString()),
+        puede_cerrar: usuario_rol.toLowerCase() === 'administrador' || usuario_rol.toLowerCase() === 'admin' ||
+                     (usuario_rol.toLowerCase() === 'tecnico' && ticket.tecnico_asignado && 
+                      usuario_id.toString() === ticket.tecnico_asignado.toString()),
+        // Agregar colores por defecto basados en la lógica de negocio
+        prioridad_color: ticket.prioridad_nivel === 1 ? '#FF0000' : // Rojo para alta
+                        ticket.prioridad_nivel === 2 ? '#FFA500' : // Naranja para media  
+                        '#008000', // Verde para baja
+        estado_color: ticket.estado === 'Pendiente' ? '#FFA500' : // Naranja
+                     ticket.estado === 'En Progreso' ? '#0066CC' : // Azul
+                     ticket.estado === 'Resuelto' ? '#008000' : // Verde
+                     ticket.estado === 'Cerrado' ? '#808080' : // Gris
+                     '#000000' // Negro por defecto
+      }));
+
+      // Estadísticas rápidas según el rol
+      let estadisticas = {};
+      
+      if (usuario_rol.toLowerCase() === 'administrador' || usuario_rol.toLowerCase() === 'admin') {
+        const statsQuery = `
+          SELECT 
+            COUNT(*) as total_tickets,
+            COUNT(CASE WHEN e.nombre = 'Pendiente' THEN 1 END) as pendientes,
+            COUNT(CASE WHEN e.nombre = 'En Progreso' THEN 1 END) as en_progreso,
+            COUNT(CASE WHEN e.nombre = 'Resuelto' THEN 1 END) as resueltos,
+            COUNT(CASE WHEN e.nombre = 'Cerrado' THEN 1 END) as cerrados,
+            COUNT(CASE WHEN p.nivel = 1 THEN 1 END) as alta_prioridad
+          FROM public.tickets t
+          LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
+          LEFT JOIN public.prioridades p ON t.prioridad_id = p.id
+          ${whereClause}
+        `;
+        
+        const statsResult = await sql.unsafe(statsQuery);
+        estadisticas = statsResult[0];
+      }
+
+      // Log de consulta exitosa
+      console.log('✅ Tickets obtenidos exitosamente:', {
+        usuario_id: usuario_id,
+        rol: usuario_rol,
+        total_encontrados: total,
+        pagina: pageNum,
+        filtros_aplicados: Object.keys(req.query).length,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Tickets obtenidos exitosamente',
+        data: {
+          tickets: ticketsFormateados,
+          pagination: {
+            current_page: pageNum,
+            total_pages: totalPages,
+            total_items: total,
+            items_per_page: limitNum,
+            has_next: pageNum < totalPages,
+            has_prev: pageNum > 1
+          },
+          filters_applied: {
+            rol: usuario_rol,
+            estado_id: estado_id || null,
+            categoria_id: categoria_id || null,
+            prioridad_id: prioridad_id || null,
+            fecha_desde: fecha_desde || null,
+            fecha_hasta: fecha_hasta || null
+          },
+          ...(usuario_rol.toLowerCase() === 'administrador' || usuario_rol.toLowerCase() === 'admin' ? { estadisticas } : {})
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error al obtener tickets:', {
+        error: error.message,
+        stack: error.stack,
+        user_id: req.user?.id,
+        user_rol: req.user?.rol_nombre || req.user?.rol,
+        query_params: req.query,
+        timestamp: new Date().toISOString()
+      });
+
+      if (error.code === '42703') {
+        return res.status(400).json({
+          success: false,
+          message: 'Campo de consulta inválido',
+          error: 'INVALID_COLUMN'
+        });
+      }
+
+      if (error.code === '22007') {
+        return res.status(400).json({
+          success: false,
+          message: 'Formato de fecha inválido',
+          error: 'INVALID_DATE_FORMAT'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
+      });
+    }
+  }
+
+  /**
+   * Cambia el estado de un ticket existente
+   * RF-XX: Actualización de Estado de Tickets
+   * Endpoint: PATCH /api/tickets/:id/estado
+   * Permisos: Solo Técnico asignado y Administradores
+   */
+  async cambiarEstadoTicket(req, res) {
+    try {
+      // Validar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      const usuario_id = req.user.id;
+      const usuario_rol = req.user.rol_nombre || req.user.rol;
+      const ticket_id = req.params.id;
+
+      // Validar que el rol esté disponible
+      if (!usuario_rol) {
+        return res.status(401).json({
+          success: false,
+          message: 'Información de rol no disponible en el token',
+          error: 'ROL_NO_DISPONIBLE'
+        });
+      }
+
+      // Validar ID del ticket
+      if (!ticket_id || isNaN(parseInt(ticket_id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de ticket inválido',
+          error: 'TICKET_ID_INVALIDO'
+        });
+      }
+
+      const { 
+        nuevo_estado_id, 
+        comentario_tecnico = null,
+        motivo_cambio = null 
+      } = req.body;
+
+      // Validar datos de entrada
+      if (!nuevo_estado_id || isNaN(parseInt(nuevo_estado_id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'El nuevo estado es requerido y debe ser válido',
+          error: 'ESTADO_REQUERIDO'
+        });
+      }
+
+      // Verificar que el usuario tiene permisos para cambiar estados
+      if (usuario_rol.toLowerCase() === 'usuario' || usuario_rol.toLowerCase() === 'usuario_final') {
+        return res.status(403).json({
+          success: false,
+          message: 'Los usuarios finales no pueden cambiar el estado de tickets',
+          error: 'PERMISOS_INSUFICIENTES'
+        });
+      }
+
+      // Obtener información actual del ticket
+      const ticketActual = await sql`
+        SELECT 
+          t.id,
+          t.numero_ticket,
+          t.titulo,
+          t.estado_id,
+          t.tecnico_asignado_id,
+          t.usuario_solicitante_id,
+          e.nombre as estado_actual,
+          us.nombres || ' ' || us.apellidos as usuario_solicitante,
+          ut.nombres || ' ' || ut.apellidos as tecnico_asignado
+        FROM public.tickets t
+        LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
+        LEFT JOIN public.usuarios us ON t.usuario_solicitante_id = us.id
+        LEFT JOIN public.usuarios ut ON t.tecnico_asignado_id = ut.id
+        WHERE t.id = ${parseInt(ticket_id)}
+      `;
+
+      if (ticketActual.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Ticket no encontrado',
+          error: 'TICKET_NO_ENCONTRADO'
+        });
+      }
+
+      const ticket = ticketActual[0];
+
+      // Validar permisos específicos por rol
+      if (usuario_rol.toLowerCase() === 'tecnico' || usuario_rol.toLowerCase() === 'tecnico_soporte') {
+        // Técnico solo puede cambiar estado de tickets asignados a él
+        if (!ticket.tecnico_asignado_id || ticket.tecnico_asignado_id !== usuario_id) {
+          return res.status(403).json({
+            success: false,
+            message: 'Solo puedes cambiar el estado de tickets asignados a ti',
+            error: 'TICKET_NO_ASIGNADO'
+          });
+        }
+      }
+
+      // Verificar que el nuevo estado existe
+      const estadoNuevo = await sql`
+        SELECT id, nombre FROM public.estados_ticket
+        WHERE id = ${parseInt(nuevo_estado_id)}
+      `;
+
+      if (estadoNuevo.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'El estado especificado no existe',
+          error: 'ESTADO_NO_ENCONTRADO'
+        });
+      }
+
+      const nuevoEstado = estadoNuevo[0];
+
+      // Validar que no sea el mismo estado actual
+      if (ticket.estado_id === parseInt(nuevo_estado_id)) {
+        return res.status(400).json({
+          success: false,
+          message: `El ticket ya se encuentra en estado "${nuevoEstado.nombre}"`,
+          error: 'ESTADO_DUPLICADO'
+        });
+      }
+
+      // Validar transiciones de estado permitidas
+      const transicionesPermitidas = {
+        'Pendiente': ['En Progreso', 'Cancelado', 'Asignado'],
+        'Asignado': ['En Progreso', 'Pendiente', 'Cancelado'],
+        'En Progreso': ['Resuelto', 'Pendiente', 'Cancelado'],
+        'Resuelto': ['Cerrado', 'En Progreso', 'Cancelado'],
+        'Cerrado': ['Reabierto'], // Solo admin puede reabrir
+        'Cancelado': ['Pendiente'], // Solo admin puede reactivar
+        'Reabierto': ['En Progreso', 'Cancelado']
+      };
+
+      const estadosEspecialesAdmin = ['Cancelado', 'Reabierto'];
+      
+      // Verificar transición válida
+      const transicionesValidas = transicionesPermitidas[ticket.estado_actual] || [];
+      
+      if (!transicionesValidas.includes(nuevoEstado.nombre)) {
+        return res.status(400).json({
+          success: false,
+          message: `No se puede cambiar de "${ticket.estado_actual}" a "${nuevoEstado.nombre}"`,
+          error: 'TRANSICION_INVALIDA'
+        });
+      }
+
+      // Verificar permisos para estados especiales (solo admin)
+      if (estadosEspecialesAdmin.includes(nuevoEstado.nombre)) {
+        if (usuario_rol.toLowerCase() !== 'administrador' && usuario_rol.toLowerCase() !== 'admin') {
+          return res.status(403).json({
+            success: false,
+            message: `Solo los administradores pueden cambiar tickets a estado "${nuevoEstado.nombre}"`,
+            error: 'PERMISOS_ESTADO_ESPECIAL'
+          });
+        }
+      }
+
+      // Verificar si se puede cerrar tickets desde "Cerrado"
+      if (ticket.estado_actual === 'Cerrado' && usuario_rol.toLowerCase() !== 'administrador' && usuario_rol.toLowerCase() !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo los administradores pueden modificar tickets cerrados',
+          error: 'TICKET_CERRADO'
+        });
+      }
+
+      // Preparar campos de fecha según el nuevo estado
+      let camposActualizacion = {
+        estado_id: parseInt(nuevo_estado_id),
+        fecha_actualizacion: new Date()
+      };
+
+      // Actualizar fechas específicas según el estado
+      switch (nuevoEstado.nombre) {
+        case 'En Progreso':
+          if (!ticket.fecha_asignacion) {
+            camposActualizacion.fecha_asignacion = new Date();
+          }
+          break;
+        case 'Resuelto':
+          camposActualizacion.fecha_resolucion = new Date();
+          break;
+        case 'Cerrado':
+          camposActualizacion.fecha_cierre = new Date();
+          break;
+      }
+
+      // Construir query de actualización dinámicamente
+      const setClauses = [];
+      const valores = [];
+      let paramCounter = 1;
+
+      Object.entries(camposActualizacion).forEach(([campo, valor]) => {
+        setClauses.push(`${campo} = $${paramCounter}`);
+        valores.push(valor);
+        paramCounter++;
+      });
+
+      valores.push(parseInt(ticket_id));
+
+      // Actualizar el ticket
+      const ticketActualizado = await sql.unsafe(`
+        UPDATE public.tickets 
+        SET ${setClauses.join(', ')}
+        WHERE id = $${paramCounter}
+        RETURNING *
+      `, valores);
+
+      // Registrar el cambio en historial (si tienes tabla de historial)
+      try {
+        await sql`
+          INSERT INTO public.historial_tickets (
+            ticket_id,
+            usuario_id,
+            estado_anterior,
+            estado_nuevo,
+            comentario,
+            motivo,
+            fecha_cambio
+          ) VALUES (
+            ${parseInt(ticket_id)},
+            ${usuario_id},
+            ${ticket.estado_actual},
+            ${nuevoEstado.nombre},
+            ${comentario_tecnico},
+            ${motivo_cambio},
+            NOW()
+          )
+        `;
+      } catch (historialError) {
+        // Si no existe tabla de historial, continuar sin error
+        console.log('ℹ️ Tabla historial_tickets no encontrada, continuando sin registrar historial');
+      }
+
+      // Obtener información completa del ticket actualizado
+      const ticketCompleto = await sql`
+        SELECT 
+          t.id,
+          t.numero_ticket,
+          t.titulo,
+          t.descripcion,
+          c.nombre as categoria,
+          p.nombre as prioridad,
+          p.nivel as prioridad_nivel,
+          e.nombre as estado,
+          us.nombres || ' ' || us.apellidos as usuario_solicitante,
+          us.email as usuario_email,
+          ut.nombres || ' ' || ut.apellidos as tecnico_asignado,
+          ut.email as tecnico_email,
+          eq.nombre as equipo_afectado,
+          t.fecha_creacion,
+          t.fecha_asignacion,
+          t.fecha_resolucion,
+          t.fecha_cierre,
+          t.fecha_actualizacion,
+          -- Calcular tiempo transcurrido
+          CASE 
+            WHEN t.fecha_cierre IS NOT NULL THEN 
+              EXTRACT(EPOCH FROM (t.fecha_cierre - t.fecha_creacion))/3600
+            ELSE 
+              EXTRACT(EPOCH FROM (NOW() - t.fecha_creacion))/3600
+          END as horas_transcurridas
+        FROM public.tickets t
+        LEFT JOIN public.categorias_ticket c ON t.categoria_id = c.id
+        LEFT JOIN public.prioridades p ON t.prioridad_id = p.id
+        LEFT JOIN public.estados_ticket e ON t.estado_id = e.id
+        LEFT JOIN public.usuarios us ON t.usuario_solicitante_id = us.id
+        LEFT JOIN public.usuarios ut ON t.tecnico_asignado_id = ut.id
+        LEFT JOIN public.equipos eq ON t.equipo_afectado_id = eq.id
+        WHERE t.id = ${parseInt(ticket_id)}
+      `;
+
+      // Formatear respuesta
+      const ticketFormateado = {
+        ...ticketCompleto[0],
+        horas_transcurridas: Math.round(ticketCompleto[0].horas_transcurridas * 100) / 100,
+        es_urgente: ticketCompleto[0].prioridad_nivel === 1 && ticketCompleto[0].horas_transcurridas > 24,
+        prioridad_color: ticketCompleto[0].prioridad_nivel === 1 ? '#FF0000' : 
+                        ticketCompleto[0].prioridad_nivel === 2 ? '#FFA500' : '#008000',
+        estado_color: ticketCompleto[0].estado === 'Pendiente' ? '#FFA500' :
+                     ticketCompleto[0].estado === 'En Progreso' ? '#0066CC' :
+                     ticketCompleto[0].estado === 'Resuelto' ? '#008000' :
+                     ticketCompleto[0].estado === 'Cerrado' ? '#808080' : '#000000'
+      };
+
+      // Log del cambio exitoso
+      console.log('✅ Estado de ticket cambiado exitosamente:', {
+        ticket_id: parseInt(ticket_id),
+        numero_ticket: ticket.numero_ticket,
+        usuario_id: usuario_id,
+        usuario_rol: usuario_rol,
+        estado_anterior: ticket.estado_actual,
+        estado_nuevo: nuevoEstado.nombre,
+        comentario: comentario_tecnico ? 'Sí' : 'No',
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Estado del ticket cambiado exitosamente de "${ticket.estado_actual}" a "${nuevoEstado.nombre}"`,
+        data: {
+          ticket: ticketFormateado,
+          cambio_realizado: {
+            estado_anterior: ticket.estado_actual,
+            estado_nuevo: nuevoEstado.nombre,
+            fecha_cambio: camposActualizacion.fecha_actualizacion,
+            realizado_por: usuario_rol,
+            comentario_incluido: !!comentario_tecnico
+          },
+          siguiente_paso: nuevoEstado.nombre === 'Resuelto' 
+            ? 'El ticket está listo para ser cerrado por un administrador'
+            : nuevoEstado.nombre === 'En Progreso'
+            ? 'El técnico puede trabajar en la resolución del problema'
+            : null
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error al cambiar estado del ticket:', {
+        error: error.message,
+        stack: error.stack,
+        ticket_id: req.params.id,
+        user_id: req.user?.id,
+        user_rol: req.user?.rol_nombre || req.user?.rol,
+        body: req.body,
+        timestamp: new Date().toISOString()
+      });
+
+      if (error.code === '23503') {
+        return res.status(400).json({
+          success: false,
+          message: 'Referencia inválida en los datos proporcionados',
+          error: 'FOREIGN_KEY_ERROR'
+        });
+      }
+
+      if (error.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          message: 'Conflicto con datos existentes',
+          error: 'DUPLICATE_ERROR'
         });
       }
 

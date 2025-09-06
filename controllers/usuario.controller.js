@@ -103,7 +103,6 @@ class UsuariosController {
       const usuarios = await sql`
         SELECT 
           u.id, 
-          u.nombre_usuario,
           u.email,
           u.nombres,
           u.apellidos,
@@ -142,12 +141,10 @@ class UsuariosController {
       });
     }
   }
-
-
   /**
    * Crea un nuevo usuario con sistema de activación por email
    */
-    async crearUsuario(req, res) {
+  async crearUsuario(req, res) {
     try {
       const { 
         email, 
@@ -333,7 +330,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Actualiza un usuario
    */
@@ -452,7 +448,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Elimina un usuario (soft delete)
    */
@@ -543,7 +538,6 @@ class UsuariosController {
       });
     }
   }
-  
   /**
    * Actualiza el último acceso del usuario
    */
@@ -588,7 +582,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Cambia la contraseña del usuario (requiere contraseña actual)
    */
@@ -681,7 +674,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Genera token de recuperación de contraseña y envía email
    */
@@ -757,7 +749,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Restablece contraseña usando token de recuperación
    */
@@ -836,8 +827,7 @@ class UsuariosController {
       });
     }
   }
-
-    /**
+  /**
    * Activa la cuenta de un usuario mediante código de verificación
    * Endpoint: POST /api/usuarios/activar
    * Acceso: Público (sin autenticación)
@@ -865,7 +855,7 @@ class UsuariosController {
 
       // Buscar usuario por email
       const usuarios = await sql`
-        SELECT u.id, u.nombres, u.apellidos, u.email, u.activo, u.nombre_usuario,
+        SELECT u.id, u.nombres, u.apellidos, u.email, u.activo,
               r.nombre as rol_nombre
         FROM public.usuarios u
         LEFT JOIN public.roles r ON u.rol_id = r.id
@@ -955,7 +945,7 @@ class UsuariosController {
           SET activo = true, 
               fecha_actualizacion = NOW()
           WHERE id = ${usuario.id}
-          RETURNING id, nombre_usuario, email, nombres, apellidos, activo, fecha_actualizacion
+          RETURNING id, email, nombres, apellidos, activo, fecha_actualizacion
         `;
 
         // 2. Marcar el código como usado
@@ -999,7 +989,6 @@ class UsuariosController {
           data: {
             user: {
               id: usuarioActualizado[0].id,
-              nombre_usuario: usuarioActualizado[0].nombre_usuario,
               email: usuarioActualizado[0].email,
               nombres: usuarioActualizado[0].nombres,
               apellidos: usuarioActualizado[0].apellidos,
@@ -1039,8 +1028,7 @@ class UsuariosController {
       });
     }
   }
-
-    /**
+  /**
    * Valida el código de activación y activa la cuenta del usuario
    */
   async validarCodigoActivacion(req, res) {
@@ -1167,7 +1155,6 @@ class UsuariosController {
       });
     }
   }
-
   /**
    * Reenvía un código de activación para cuentas no activadas
    */

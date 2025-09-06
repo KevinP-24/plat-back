@@ -175,11 +175,9 @@ const router = Router();
  *         $ref: '#/components/responses/InternalError'
  */
 router.post('/login', authController.login);
-
 // ================================
 // RUTAS CON AUTENTICACIÓN REQUERIDA
 // ================================
-
 /**
  * @swagger
  * /api/auth/logout:
