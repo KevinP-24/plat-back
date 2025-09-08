@@ -585,7 +585,7 @@ class UsuariosController {
   /**
    * Cambia la contraseña del usuario (requiere contraseña actual)
    */
-  async cambiarContraseña(req, res) {
+  async cambiarContrasena(req, res) {
     try {
       const { id } = req.params;
       const { passwordActual, passwordNueva } = req.body;
@@ -677,7 +677,7 @@ class UsuariosController {
   /**
    * Genera token de recuperación de contraseña y envía email
    */
-  async recuperarContraseña(req, res) {
+  async recuperarContrasena(req, res) {
     try {
       const { email } = req.body;
 
@@ -752,7 +752,7 @@ class UsuariosController {
   /**
    * Restablece contraseña usando token de recuperación
    */
-  async restablecerContraseña(req, res) {
+  async restablecerContrasena(req, res) {
     try {
       const { token, passwordNueva } = req.body;
 
