@@ -16,11 +16,14 @@ import ticketRoutes from './routes/ticket.routes.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración CORS para permitir solicitudes desde el frontend
+// Configuración CORS
 app.use(cors({
-  origin: 'http://localhost:4200', // Permite solicitudes solo desde este frontend
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], // Los métodos permitidos
-  credentials: true // Si se requieren cookies o credenciales, establece esto en true
+  origin: [
+    'http://localhost:4200', // Desarrollo
+    process.env.FRONTEND_URL // Producción (Render u otro host)
+  ].filter(Boolean),
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+  credentials: true
 }));
 
 // Middleware
@@ -35,9 +38,17 @@ app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 
+// Catch-all para rutas no encontradas
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Ruta no encontrada',
+    message: `No se encontró la ruta ${req.originalUrl}`
+  });
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Backend en http://localhost:${PORT}`);
-  console.log(`Swagger UI en http://localhost:${PORT}/api-docs`);
-  console.log('Base de datos:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
+  console.log(`🚀 Backend en http://localhost:${PORT}`);
+  console.log(`📚 Swagger UI en http://localhost:${PORT}/api-docs`);
+  console.log('🗄️ Base de datos:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
 });
