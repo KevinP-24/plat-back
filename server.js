@@ -23,7 +23,7 @@ app.use(cors({
     'https://tu-frontend-url.onrender.com', // Para producción (cambiar por tu URL real)
     process.env.FRONTEND_URL // Variable de entorno para flexibilidad
   ].filter(Boolean), // Filtrar valores undefined
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], // Los métodos permitidos
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], // Los métodos permitidos (mantengo PATCH de development)
   credentials: true // Si se requieren cookies o credenciales, establece esto en true
 }));
 
