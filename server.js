@@ -19,8 +19,9 @@ const PORT = process.env.PORT || 3000;
 // Configuración CORS
 app.use(cors({
   origin: [
-    'http://localhost:4200', // Desarrollo
-    process.env.FRONTEND_URL // Producción (Render u otro host)
+    'http://localhost:4200',        // Desarrollo local (Angular CLI)
+    'https://plat-epa.web.app',     // Producción (Firebase Hosting)
+    process.env.FRONTEND_URL        // Extra: si defines otra URL en variables de entorno
   ].filter(Boolean),
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   credentials: true
