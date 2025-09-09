@@ -394,6 +394,43 @@ const swaggerDefinition = {
       }
     },
 
+        // Esquemas para Estados de Ticket
+    EstadoTicket: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único del estado de ticket',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre del estado',
+          example: "Pendiente"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción del estado',
+          example: "Ticket recién creado"
+        },
+        es_final: {
+          type: 'boolean',
+          description: 'Indica si es un estado final',
+          example: false
+        },
+        orden: {
+          type: 'integer',
+          description: 'Orden de secuencia del estado',
+          example: 1
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado activo/inactivo',
+          example: true
+        }
+      }
+    },
+
       // Esquemas de respuesta
       ApiResponse: {
         type: 'object',
@@ -562,7 +599,8 @@ const options = {
     './routes/roles.js',
     './routes/tickets.js',
     './routes/auth.js',
-    './routes/prioridades.js'
+    './routes/prioridades.js',
+    './routes/estadoTicket.js'
   ], // rutas donde están los comentarios JSDoc
 };
 
