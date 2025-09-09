@@ -431,6 +431,147 @@ const swaggerDefinition = {
       }
     },
 
+    // Esquemas para Equipos
+    Equipo: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único del equipo',
+          example: 1
+        },
+        codigo_inventario: {
+          type: 'string',
+          description: 'Código único de inventario',
+          example: "EQ-001-2025"
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre del equipo',
+          example: "Computador HP EliteDesk"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción detallada del equipo',
+          example: "Computador de escritorio para tareas administrativas"
+        },
+        tipo_equipo_id: {
+          type: 'integer',
+          description: 'ID del tipo de equipo',
+          example: 1
+        },
+        marca_id: {
+          type: 'integer',
+          description: 'ID de la marca',
+          example: 1
+        },
+        modelo: {
+          type: 'string',
+          description: 'Modelo del equipo',
+          example: "EliteDesk 800 G6"
+        },
+        numero_serie: {
+          type: 'string',
+          description: 'Número de serie del equipo',
+          example: "HP123456789"
+        },
+        especificaciones: {
+          type: 'object',
+          description: 'Especificaciones técnicas en formato JSON',
+          example: {"cpu": "Intel i5", "ram": "8GB", "storage": "256GB SSD"}
+        },
+        estado_id: {
+          type: 'integer',
+          description: 'ID del estado actual del equipo',
+          example: 1
+        },
+        ubicacion_id: {
+          type: 'integer',
+          description: 'ID de la ubicación del equipo',
+          example: 1
+        },
+        usuario_asignado_id: {
+          type: 'integer',
+          nullable: true,
+          description: 'ID del usuario asignado al equipo',
+          example: 123
+        },
+        fecha_adquisicion: {
+          type: 'string',
+          format: 'date',
+          description: 'Fecha de adquisición del equipo',
+          example: "2025-01-15"
+        },
+        fecha_garantia: {
+          type: 'string',
+          format: 'date',
+          nullable: true,
+          description: 'Fecha de vencimiento de garantía',
+          example: "2027-01-15"
+        },
+        valor_compra: {
+          type: 'number',
+          description: 'Valor de compra del equipo',
+          example: 1500000.00
+        },
+        proveedor: {
+          type: 'string',
+          description: 'Proveedor del equipo',
+          example: "TechSolutions S.A.S"
+        },
+        observaciones: {
+          type: 'string',
+          nullable: true,
+          description: 'Observaciones adicionales',
+          example: "Equipo en excelente estado"
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación del registro',
+          example: "2025-01-15T10:30:00.000Z"
+        },
+        fecha_actualizacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de última actualización',
+          example: "2025-01-15T10:30:00.000Z"
+        }
+      }
+    },
+    // Esquemas para Categorías
+    Categoria: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único de la categoría',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre de la categoría',
+          example: "Hardware"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción de la categoría',
+          example: "Problemas con equipos físicos"
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado activo/inactivo de la categoría',
+          example: true
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación de la categoría',
+          example: "2025-08-25T03:59:24.185Z"
+        }
+      }
+    },
+
       // Esquemas de respuesta
       ApiResponse: {
         type: 'object',
@@ -600,7 +741,9 @@ const options = {
     './routes/tickets.js',
     './routes/auth.js',
     './routes/prioridades.js',
-    './routes/estadoTicket.js'
+    './routes/estadoTicket.js',
+    './routes/equipo.js',
+    './routes/categoria.js'
   ], // rutas donde están los comentarios JSDoc
 };
 

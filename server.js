@@ -14,6 +14,8 @@ import authRoutes from './routes/auth.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
 import prioridadesRoutes from './routes/prioridades.routes.js';
 import estadoTicketRoutes from './routes/estadoTicket.routes.js';
+import equipoRoutes from './routes/equipo.routes.js';
+import categoriaRoutes from './routes/categoria.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +44,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/prioridades', prioridadesRoutes);
 app.use('/api/estados-ticket', estadoTicketRoutes);
+app.use('/api/equipo', equipoRoutes); 
+app.use('/api/categoria', categoriaRoutes);
 
 // Catch-all para rutas no encontradas
 app.use((req, res) => {
