@@ -347,30 +347,230 @@ const swaggerDefinition = {
 
       // Esquemas para Prioridades
       Prioridad: {
-        type: 'object',
-        properties: {
-          id: {
-            type: 'integer',
-            description: 'ID único de la prioridad',
-            example: 1
-          },
-          nombre: {
-            type: 'string',
-            description: 'Nombre de la prioridad',
-            example: "Alta"
-          },
-          nivel: {
-            type: 'integer',
-            description: 'Nivel numérico de la prioridad',
-            example: 1
-          },
-          descripcion: {
-            type: 'string',
-            description: 'Descripción de la prioridad',
-            example: "Requiere atención inmediata"
-          }
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único de la prioridad',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre de la prioridad',
+          example: "Alta"
+        },
+        nivel: {
+          type: 'integer',
+          description: 'Nivel numérico de la prioridad (1=Alta, 2=Media, 3=Baja)',
+          example: 1
+        },
+        color: {
+          type: 'string',
+          description: 'Color hexadecimal para la interfaz',
+          example: "#FF4444"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción de la prioridad',
+          example: "Problemas críticos"
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado de la prioridad',
+          example: true
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación',
+          example: '2025-01-15T10:30:00.000Z'
+        },
+        fecha_actualizacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de última actualización',
+          example: '2025-01-15T10:30:00.000Z'
         }
-      },
+      }
+    },
+
+        // Esquemas para Estados de Ticket
+    EstadoTicket: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único del estado de ticket',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre del estado',
+          example: "Pendiente"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción del estado',
+          example: "Ticket recién creado"
+        },
+        es_final: {
+          type: 'boolean',
+          description: 'Indica si es un estado final',
+          example: false
+        },
+        orden: {
+          type: 'integer',
+          description: 'Orden de secuencia del estado',
+          example: 1
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado activo/inactivo',
+          example: true
+        }
+      }
+    },
+
+    // Esquemas para Equipos
+    Equipo: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único del equipo',
+          example: 1
+        },
+        codigo_inventario: {
+          type: 'string',
+          description: 'Código único de inventario',
+          example: "EQ-001-2025"
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre del equipo',
+          example: "Computador HP EliteDesk"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción detallada del equipo',
+          example: "Computador de escritorio para tareas administrativas"
+        },
+        tipo_equipo_id: {
+          type: 'integer',
+          description: 'ID del tipo de equipo',
+          example: 1
+        },
+        marca_id: {
+          type: 'integer',
+          description: 'ID de la marca',
+          example: 1
+        },
+        modelo: {
+          type: 'string',
+          description: 'Modelo del equipo',
+          example: "EliteDesk 800 G6"
+        },
+        numero_serie: {
+          type: 'string',
+          description: 'Número de serie del equipo',
+          example: "HP123456789"
+        },
+        especificaciones: {
+          type: 'object',
+          description: 'Especificaciones técnicas en formato JSON',
+          example: {"cpu": "Intel i5", "ram": "8GB", "storage": "256GB SSD"}
+        },
+        estado_id: {
+          type: 'integer',
+          description: 'ID del estado actual del equipo',
+          example: 1
+        },
+        ubicacion_id: {
+          type: 'integer',
+          description: 'ID de la ubicación del equipo',
+          example: 1
+        },
+        usuario_asignado_id: {
+          type: 'integer',
+          nullable: true,
+          description: 'ID del usuario asignado al equipo',
+          example: 123
+        },
+        fecha_adquisicion: {
+          type: 'string',
+          format: 'date',
+          description: 'Fecha de adquisición del equipo',
+          example: "2025-01-15"
+        },
+        fecha_garantia: {
+          type: 'string',
+          format: 'date',
+          nullable: true,
+          description: 'Fecha de vencimiento de garantía',
+          example: "2027-01-15"
+        },
+        valor_compra: {
+          type: 'number',
+          description: 'Valor de compra del equipo',
+          example: 1500000.00
+        },
+        proveedor: {
+          type: 'string',
+          description: 'Proveedor del equipo',
+          example: "TechSolutions S.A.S"
+        },
+        observaciones: {
+          type: 'string',
+          nullable: true,
+          description: 'Observaciones adicionales',
+          example: "Equipo en excelente estado"
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación del registro',
+          example: "2025-01-15T10:30:00.000Z"
+        },
+        fecha_actualizacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de última actualización',
+          example: "2025-01-15T10:30:00.000Z"
+        }
+      }
+    },
+    // Esquemas para Categorías
+    Categoria: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único de la categoría',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre de la categoría',
+          example: "Hardware"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción de la categoría',
+          example: "Problemas con equipos físicos"
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado activo/inactivo de la categoría',
+          example: true
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación de la categoría',
+          example: "2025-08-25T03:59:24.185Z"
+        }
+      }
+    },
 
       // Esquemas de respuesta
       ApiResponse: {
@@ -539,7 +739,11 @@ const options = {
     './controllers/*.js',
     './routes/roles.js',
     './routes/tickets.js',
-    './routes/auth.js'
+    './routes/auth.js',
+    './routes/prioridades.js',
+    './routes/estadoTicket.js',
+    './routes/equipo.js',
+    './routes/categoria.js'
   ], // rutas donde están los comentarios JSDoc
 };
 
