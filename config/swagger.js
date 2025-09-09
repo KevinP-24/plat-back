@@ -347,30 +347,52 @@ const swaggerDefinition = {
 
       // Esquemas para Prioridades
       Prioridad: {
-        type: 'object',
-        properties: {
-          id: {
-            type: 'integer',
-            description: 'ID único de la prioridad',
-            example: 1
-          },
-          nombre: {
-            type: 'string',
-            description: 'Nombre de la prioridad',
-            example: "Alta"
-          },
-          nivel: {
-            type: 'integer',
-            description: 'Nivel numérico de la prioridad',
-            example: 1
-          },
-          descripcion: {
-            type: 'string',
-            description: 'Descripción de la prioridad',
-            example: "Requiere atención inmediata"
-          }
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID único de la prioridad',
+          example: 1
+        },
+        nombre: {
+          type: 'string',
+          description: 'Nombre de la prioridad',
+          example: "Alta"
+        },
+        nivel: {
+          type: 'integer',
+          description: 'Nivel numérico de la prioridad (1=Alta, 2=Media, 3=Baja)',
+          example: 1
+        },
+        color: {
+          type: 'string',
+          description: 'Color hexadecimal para la interfaz',
+          example: "#FF4444"
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción de la prioridad',
+          example: "Problemas críticos"
+        },
+        activo: {
+          type: 'boolean',
+          description: 'Estado de la prioridad',
+          example: true
+        },
+        fecha_creacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de creación',
+          example: '2025-01-15T10:30:00.000Z'
+        },
+        fecha_actualizacion: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha de última actualización',
+          example: '2025-01-15T10:30:00.000Z'
         }
-      },
+      }
+    },
 
       // Esquemas de respuesta
       ApiResponse: {
@@ -539,7 +561,8 @@ const options = {
     './controllers/*.js',
     './routes/roles.js',
     './routes/tickets.js',
-    './routes/auth.js'
+    './routes/auth.js',
+    './routes/prioridades.js'
   ], // rutas donde están los comentarios JSDoc
 };
 
