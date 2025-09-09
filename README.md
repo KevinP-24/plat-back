@@ -36,6 +36,7 @@ Proyecto backend desarrollado con Node.js y Express.js para [descripción de tu 
 - **Bcrypt** - Encriptación de contraseñas (opcional)
 - **Cors** - Middleware para Cross-Origin Resource Sharing
 - **Dotenv** - Manejo de variables de entorno
+- **SubaBase** - Servidor remoto para almecenar la base de datos
 
 ## 📋 Prerrequisitos
 
@@ -44,7 +45,7 @@ Antes de comenzar, asegúrate de tener instalado:
 - [Node.js](https://nodejs.org/) (versión 14.x o superior)
 - [npm](https://www.npmjs.com/) (viene con Node.js)
 - [Git](https://git-scm.com/)
-- [MongoDB](https://www.mongodb.com/) (opcional, si usas base de datos)
+- [Swager] 
 
 ## 🚀 Instalación
 
