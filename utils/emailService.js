@@ -303,7 +303,7 @@ class EmailService {
    */
   async enviarActivacionCuenta(email, nombres, codigoActivacion) {
     try {
-      const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activar-cuenta`;
+      const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activate-account`;
       
       const mailOptions = {
         from: {
