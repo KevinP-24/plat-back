@@ -321,6 +321,7 @@ class TicketsController {
 
         case 'tecnico':
         case 'tecnico_soporte':
+        case 'técnico':
           // Técnico: solo tickets asignados a él
           whereConditions.push(`t.tecnico_asignado_id = ${usuario_id}`);
           break;
@@ -1395,8 +1396,9 @@ class TicketsController {
 
         case 'tecnico':
         case 'tecnico_soporte':
+        case 'técnico':
           // Técnico: solo puede ver tickets asignados a él
-          tieneAcceso = ticket.tecnico_asignado_id === usuario_id;
+          tieneAcceso = String(ticket.tecnico_asignado_id) === String(usuario_id);
           break;
 
         case 'administrador':
