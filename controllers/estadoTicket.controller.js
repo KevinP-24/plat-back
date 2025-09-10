@@ -31,10 +31,11 @@ class EstadosTicketController {
       }
 
       if (conditions.length > 0) {
-        baseQuery = sql`
-          ${baseQuery}
-          WHERE ${sql.join(conditions, sql` AND `)}
-        `;
+        // Usamos .reduce() para unir todas las condiciones del array con "AND"
+        const whereClause = conditions.reduce((prev, curr) => sql`${prev} AND ${curr}`);
+        
+        // Añadimos la cláusula WHERE a nuestra consulta base
+        baseQuery = sql`${baseQuery} WHERE ${whereClause}`;
       }
 
       const finalQuery = sql`
