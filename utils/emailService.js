@@ -38,7 +38,7 @@ class EmailService {
    */
   async enviarRecuperacionPassword(email, nombres, token) {
     try {
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/restablecer-password?token=${token}`;
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
       
       const mailOptions = {
         from: {
@@ -303,7 +303,7 @@ class EmailService {
    */
   async enviarActivacionCuenta(email, nombres, codigoActivacion) {
     try {
-      const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activar-cuenta`;
+      const activationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/activate-account`;
       
       const mailOptions = {
         from: {
