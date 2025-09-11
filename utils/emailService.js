@@ -38,7 +38,7 @@ class EmailService {
    */
   async enviarRecuperacionPassword(email, nombres, token) {
     try {
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/restablecer-password?token=${token}`;
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
       
       const mailOptions = {
         from: {
