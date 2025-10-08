@@ -1,4 +1,4 @@
-const jwtUtils = require('../utils/jwt');
+import jwtUtils from '../utils/jwt.js';
 
 /**
  * Constantes de roles del sistema
@@ -6,7 +6,7 @@ const jwtUtils = require('../utils/jwt');
  */
 const ROLES = {
   ADMINISTRADOR: 'administrador',
-  TECNICO: 'tecnico', 
+  TECNICO: 'tecnico',
   USUARIO_FINAL: 'usuario final'
 };
 
@@ -18,7 +18,6 @@ const ROLES = {
 const requireRole = (allowedRoles) => {
   return (req, res, next) => {
     try {
-      // Verificar que el usuario esté autenticado
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -27,11 +26,9 @@ const requireRole = (allowedRoles) => {
         });
       }
 
-      // Verificar si tiene el rol requerido
       const hasRequiredRole = jwtUtils.hasRole(req.user, allowedRoles);
-      
+
       if (!hasRequiredRole) {
-        // Log de intento de acceso no autorizado
         console.warn('Intento de acceso no autorizado:', {
           user_id: req.user.id,
           email: req.user.email,
@@ -51,7 +48,6 @@ const requireRole = (allowedRoles) => {
         });
       }
 
-      // Log de acceso autorizado
       console.log('Acceso autorizado por rol:', {
         user_id: req.user.id,
         email: req.user.email,
@@ -64,7 +60,6 @@ const requireRole = (allowedRoles) => {
 
     } catch (error) {
       console.error('Error en verificación de roles:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Error interno en verificación de permisos',
@@ -74,25 +69,13 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-/**
- * Middleware específico para SOLO administradores
- */
+/** Middlewares específicos **/
 const requireAdmin = requireRole(ROLES.ADMINISTRADOR);
-
-/**
- * Middleware específico para técnicos y administradores
- */
 const requireTechnicianOrAdmin = requireRole([ROLES.TECNICO, ROLES.ADMINISTRADOR]);
-
-/**
- * Middleware específico para cualquier usuario autenticado
- * (administrador, técnico o usuario final)
- */
 const requireAnyRole = requireRole([ROLES.ADMINISTRADOR, ROLES.TECNICO, ROLES.USUARIO_FINAL]);
 
 /**
  * Middleware para verificar que el usuario solo acceda a sus propios datos
- * @param {string} paramName - Nombre del parámetro en req.params que contiene el user_id
  */
 const requireOwnershipOrAdmin = (paramName = 'id') => {
   return (req, res, next) => {
@@ -105,12 +88,10 @@ const requireOwnershipOrAdmin = (paramName = 'id') => {
         });
       }
 
-      // Los administradores pueden acceder a cualquier recurso
       if (jwtUtils.hasRole(req.user, ROLES.ADMINISTRADOR)) {
         return next();
       }
 
-      // Otros usuarios solo pueden acceder a sus propios datos
       const requestedUserId = parseInt(req.params[paramName]);
       const currentUserId = parseInt(req.user.id);
 
@@ -135,7 +116,6 @@ const requireOwnershipOrAdmin = (paramName = 'id') => {
 
     } catch (error) {
       console.error('Error en verificación de ownership:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Error interno en verificación de permisos',
@@ -147,7 +127,6 @@ const requireOwnershipOrAdmin = (paramName = 'id') => {
 
 /**
  * Middleware para verificar permisos por departamento
- * Los técnicos solo pueden ver/modificar datos de su departamento
  */
 const requireDepartmentAccess = (req, res, next) => {
   try {
@@ -159,33 +138,17 @@ const requireDepartmentAccess = (req, res, next) => {
       });
     }
 
-    // Los administradores tienen acceso completo
-    if (jwtUtils.hasRole(req.user, ROLES.ADMINISTRADOR)) {
-      return next();
-    }
-
-    // Para técnicos, verificar que sea del mismo departamento
-    if (jwtUtils.hasRole(req.user, ROLES.TECNICO)) {
-      // Aquí podrías implementar lógica específica de departamento
-      // Por ahora, permitir acceso a técnicos
-      return next();
-    }
-
-    // Usuarios finales tienen acceso limitado
-    if (jwtUtils.hasRole(req.user, ROLES.USUARIO_FINAL)) {
-      // Implementar lógica específica para usuarios finales
-      return next();
-    }
+    if (jwtUtils.hasRole(req.user, ROLES.ADMINISTRADOR)) return next();
+    if (jwtUtils.hasRole(req.user, ROLES.TECNICO)) return next();
+    if (jwtUtils.hasRole(req.user, ROLES.USUARIO_FINAL)) return next();
 
     return res.status(403).json({
       success: false,
       message: 'No tienes permisos para acceder a este departamento',
       error: 'DEPARTMENT_ACCESS_DENIED'
     });
-
   } catch (error) {
     console.error('Error en verificación de departamento:', error);
-    
     return res.status(500).json({
       success: false,
       message: 'Error interno en verificación de departamento',
@@ -195,22 +158,15 @@ const requireDepartmentAccess = (req, res, next) => {
 };
 
 /**
- * Función helper para verificar si el usuario tiene un rol específico
- * @param {Object} user - Usuario del request
- * @param {string|Array} roles - Rol(es) a verificar
- * @returns {boolean}
+ * Helper para verificar si el usuario tiene un rol
  */
 const userHasRole = (user, roles) => {
-  if (!user || !user.rol_nombre) {
-    return false;
-  }
-  
+  if (!user || !user.rol_nombre) return false;
   return jwtUtils.hasRole(user, roles);
 };
 
 /**
- * Middleware para agregar información de permisos al request
- * Útil para endpoints que necesitan comportamiento condicional
+ * Middleware para agregar permisos al request
  */
 const addPermissions = (req, res, next) => {
   try {
@@ -235,19 +191,16 @@ const addPermissions = (req, res, next) => {
         canViewReports: false
       };
     }
-    
+
     next();
   } catch (error) {
     console.error('Error agregando permisos:', error);
-    next(); // Continuar aunque haya error
+    next();
   }
 };
 
-module.exports = {
-  // Constantes
+export {
   ROLES,
-  
-  // Middlewares principales
   requireRole,
   requireAdmin,
   requireTechnicianOrAdmin,
@@ -255,7 +208,5 @@ module.exports = {
   requireOwnershipOrAdmin,
   requireDepartmentAccess,
   addPermissions,
-  
-  // Helper functions
   userHasRole
 };
