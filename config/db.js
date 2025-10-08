@@ -42,7 +42,7 @@ if (!DATABASE_URL) {
  * - connect_timeout: 10 - Tiempo límite en segundos para establecer conexión
  */
 const sql = postgres(DATABASE_URL, {
-  ssl: 'require',  // Supabase requiere SSL
+  ssl: { rejectUnauthorized: false }, // 🔑 Importante para Render + Supabase
   max: 10,         // Máximo de conexiones en el pool
   idle_timeout: 20,
   connect_timeout: 10,

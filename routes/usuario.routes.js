@@ -303,7 +303,7 @@ router.patch('/:id/ultimo-acceso', usuariosController.actualizarUltimoAcceso.bin
 
 /**
  * @swagger
- * /api/usuarios/{id}/cambiar-contraseña:
+ * /api/usuarios/{id}/cambiar-password:
  *   patch:
  *     summary: Cambiar contraseña del usuario
  *     description: Permite al usuario cambiar su contraseña proporcionando la actual y la nueva
@@ -349,11 +349,11 @@ router.patch('/:id/ultimo-acceso', usuariosController.actualizarUltimoAcceso.bin
  *       500:
  *         description: Error interno del servidor
  */
-router.patch('/:id/cambiar-contraseña', usuariosController.cambiarContraseña.bind(usuariosController));
+router.patch('/:id/cambiar-password', usuariosController.cambiarContrasena.bind(usuariosController));
 
 /**
  * @swagger
- * /api/usuarios/recuperar-contraseña:
+ * /api/usuarios/recuperar-password:
  *   post:
  *     summary: Recuperar contraseña
  *     description: Genera un token de recuperación y envía instrucciones por email
@@ -380,11 +380,11 @@ router.patch('/:id/cambiar-contraseña', usuariosController.cambiarContraseña.b
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bind(usuariosController));
+router.post('/recuperar-password', usuariosController.recuperarContrasena.bind(usuariosController));
 
 /**
  * @swagger
- * /api/usuarios/restablecer-contraseña:
+ * /api/usuarios/restablecer-password:
  *   post:
  *     summary: Restablecer contraseña con token
  *     description: Restablece la contraseña usando un token válido de recuperación
@@ -416,7 +416,7 @@ router.post('/recuperar-contraseña', usuariosController.recuperarContraseña.bi
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/restablecer-contraseña', usuariosController.restablecerContraseña.bind(usuariosController));
+router.post('/restablecer-password', usuariosController.restablecerContrasena.bind(usuariosController));
 
 /**
  * @swagger

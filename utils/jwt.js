@@ -7,8 +7,8 @@ class JWTUtils {
     
     // Configuraciones JWT
     this.options = {
-    // Token expira en 24 horas
-        expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    // Token expira en 1 hora (CAMBIADO)
+        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
     // Algoritmo de cifrado
         algorithm: 'HS256',
     // Emisor
