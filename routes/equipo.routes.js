@@ -469,4 +469,169 @@ router.get('/:id', equipoController.obtenerEquipoPorId);
  */
 router.post('/', verifyToken, requireAdmin, equipoController.crearEquipo.bind(equipoController));
 
+/**
+ * @swagger
+ * /api/equipo/{id}:
+ *   put:
+ *     summary: Actualizar la información de un equipo
+ *     description: |
+ *       Permite actualizar los datos de un equipo existente en el inventario.  
+ *       Solo los usuarios con rol **Administrador** pueden modificar la información de los equipos.
+ *       
+ *       **Restricciones:**  
+ *       - Los siguientes campos **no pueden ser actualizados**:  
+ *         `codigo_inventario`, `valor_compra`, `proveedor`, `fecha_adquisicion`, `fecha_creacion`.  
+ *       - Los campos no enviados permanecerán sin cambios.
+ *       
+ *       **Campos permitidos:**  
+ *       - `nombre`, `descripcion`, `tipo_equipo_id`, `marca_id`, `modelo`, `numero_serie`,  
+ *         `especificaciones`, `estado_id`, `ubicacion_id`, `usuario_asignado_id`,  
+ *         `fecha_garantia`, `observaciones`
+ *     tags: [Equipo]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: ID único del equipo a actualizar
+ *         example: 12
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 description: Nombre descriptivo del equipo
+ *                 example: "Laptop Lenovo ThinkPad"
+ *               descripcion:
+ *                 type: string
+ *                 description: Descripción o propósito del equipo
+ *                 example: "Equipo portátil asignado al área de ingeniería"
+ *               tipo_equipo_id:
+ *                 type: integer
+ *                 description: ID del tipo de equipo
+ *                 example: 2
+ *               marca_id:
+ *                 type: integer
+ *                 description: ID de la marca
+ *                 example: 3
+ *               modelo:
+ *                 type: string
+ *                 description: Modelo del equipo
+ *                 example: "ThinkPad X1 Carbon Gen 11"
+ *               numero_serie:
+ *                 type: string
+ *                 description: Número de serie del equipo
+ *                 example: "LN123456789"
+ *               especificaciones:
+ *                 type: object
+ *                 description: Especificaciones técnicas en formato JSON
+ *                 example: {"cpu": "Intel i7", "ram": "16GB", "storage": "512GB SSD"}
+ *               estado_id:
+ *                 type: integer
+ *                 description: ID del estado actual del equipo
+ *                 example: 2
+ *               ubicacion_id:
+ *                 type: integer
+ *                 description: ID de la ubicación física del equipo
+ *                 example: 5
+ *               usuario_asignado_id:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: ID del usuario actualmente asignado
+ *                 example: 101
+ *               fecha_garantia:
+ *                 type: string
+ *                 format: date
+ *                 description: Fecha de vencimiento de la garantía
+ *                 example: "2026-12-31"
+ *               observaciones:
+ *                 type: string
+ *                 description: Notas u observaciones adicionales
+ *                 example: "Equipo en revisión técnica por mantenimiento preventivo"
+ *     responses:
+ *       200:
+ *         description: Equipo actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Equipo actualizado exitosamente"
+ *                 data:
+ *                   $ref: '#/components/schemas/Equipo'
+ *             example:
+ *               success: true
+ *               message: "Equipo actualizado exitosamente"
+ *               data:
+ *                 id: 12
+ *                 codigo_inventario: "EQ-015-2025"
+ *                 nombre: "Laptop Lenovo ThinkPad"
+ *                 descripcion: "Equipo portátil asignado al área de ingeniería"
+ *                 tipo_equipo_id: 2
+ *                 marca_id: 3
+ *                 modelo: "ThinkPad X1 Carbon Gen 11"
+ *                 numero_serie: "LN123456789"
+ *                 estado_id: 2
+ *                 ubicacion_id: 5
+ *                 usuario_asignado_id: 101
+ *                 fecha_garantia: "2026-12-31"
+ *                 observaciones: "Equipo en revisión técnica por mantenimiento preventivo"
+ *                 fecha_creacion: "2025-01-15T10:30:00.000Z"
+ *                 fecha_actualizacion: "2025-10-07T16:15:00.000Z"
+ *       400:
+ *         description: Solicitud inválida o campo no permitido
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "El campo \"valor_compra\" no puede ser actualizado"
+ *               error: "CAMPO_NO_PERMITIDO"
+ *       401:
+ *         description: Usuario no autenticado
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Usuario no autenticado"
+ *               error: "NO_AUTENTICADO"
+ *       403:
+ *         description: Permisos insuficientes
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No tienes permisos para actualizar equipos"
+ *               error: "PERMISOS_INSUFICIENTES"
+ *       404:
+ *         description: Equipo no encontrado
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Equipo no encontrado"
+ *               error: "EQUIPO_NO_ENCONTRADO"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ *               error: "INTERNAL_SERVER_ERROR"
+ */
+router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.bind(equipoController));
+
 export default router;
