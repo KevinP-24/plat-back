@@ -6,7 +6,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import { swaggerUi, swaggerSpec } from './config/swagger.js';
-import { testConnection } from './config/db.config.js'; // 👈 AGREGAR IMPORT
+import { testConnection } from './config/db.js'; // 👈 AGREGAR IMPORT
 
 // Importar rutas de ENDPOINTS
 import rolesRoutes from './routes/rol.routes.js';
