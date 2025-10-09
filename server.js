@@ -6,6 +6,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import { swaggerUi, swaggerSpec } from './config/swagger.js';
+import { testConnection } from './config/db.config.js'; // 👈 AGREGAR IMPORT
 
 // Importar rutas de ENDPOINTS
 import rolesRoutes from './routes/rol.routes.js';
@@ -55,9 +56,34 @@ app.use((req, res) => {
   });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Backend en http://localhost:${PORT}`);
-  console.log(`📚 Swagger UI en http://localhost:${PORT}/api-docs`);
-  console.log('🗄️ Base de datos:', process.env.DATABASE_URL ? 'Configurada ✓' : 'No configurada ✗');
+// 🚀 Función para iniciar el servidor con verificación de BD
+async function startServer() {
+  // Probar conexión a base de datos ANTES de iniciar el servidor
+  console.log('\n🔍 Verificando conexión a base de datos...');
+  const dbConnected = await testConnection();
+  
+  if (!dbConnected) {
+    console.error('\n⛔ ADVERTENCIA: No se pudo conectar a la base de datos');
+    console.error('⚠️  El servidor iniciará pero las operaciones de BD fallarán\n');
+    // Si prefieres que NO inicie sin BD, descomenta la siguiente línea:
+    // process.exit(1);
+  }
+
+  // Iniciar servidor
+  app.listen(PORT, () => {
+    console.log('\n╔════════════════════════════════════════════════════════╗');
+    console.log('║           🚀 PLAT Backend Server Iniciado             ║');
+    console.log('╚════════════════════════════════════════════════════════╝');
+    console.log(`\n🌐 Backend:        http://localhost:${PORT}`);
+    console.log(`📚 Swagger UI:     http://localhost:${PORT}/api-docs`);
+    console.log(`🗄️  Base de datos:  ${dbConnected ? '✅ Conectada' : '❌ Error de conexión'}`);
+    console.log(`⏰ Iniciado:       ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`);
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  });
+}
+
+// Iniciar el servidor
+startServer().catch(error => {
+  console.error('💥 Error fatal al iniciar el servidor:', error);
+  process.exit(1);
 });
