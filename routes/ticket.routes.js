@@ -1865,4 +1865,146 @@ router.get('/:id', verifyToken, ticketsController.obtenerTicketPorId);
  */
 router.put('/:id', verifyToken, ticketsController.actualizarTicket);
 
+/**
+ * @swagger
+ * /api/tickets/{id}/asignar-equipo:
+ *   post:
+ *     tags:
+ *       - Tickets
+ *     summary: Asocia un equipo del inventario a un ticket de soporte
+ *     description: |
+ *       Permite asociar un equipo existente del inventario a un ticket de soporte activo.
+ *       Esta acción también genera un registro en la tabla **historial_equipos**,  
+ *       conservando la trazabilidad de las incidencias que involucren ese equipo.
+ *       
+ *       **Requisitos y control de acceso:**
+ *       - Solo **Administrador** o **Técnico** pueden ejecutar esta acción.
+ *       - El ticket y el equipo deben existir y estar activos.
+ *       - No reemplaza registros anteriores en el historial: cada asociación genera una nueva entrada.
+ *       
+ *       **Acciones automáticas:**
+ *       - Inserta un nuevo registro en `historial_equipos` con tipo_cambio = "Asociación con ticket".
+ *       - Guarda el usuario responsable (quien ejecutó la acción) y la fecha exacta.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: ID único del ticket al que se asociará el equipo
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         example: 22
+ *     requestBody:
+ *       required: true
+ *       description: Datos necesarios para asociar el equipo al ticket
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - equipo_id
+ *             properties:
+ *               equipo_id:
+ *                 type: integer
+ *                 description: ID del equipo a asociar
+ *                 example: 9
+ *               descripcion:
+ *                 type: string
+ *                 description: Detalle o motivo de la asociación
+ *                 example: "El equipo presenta fallas intermitentes en la red"
+ *               accion_realizada:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Acción tomada durante la atención del ticket
+ *                 example: "Reinicio de adaptador de red y actualización de drivers"
+ *     responses:
+ *       200:
+ *         description: Equipo asociado correctamente al ticket
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Equipo asociado correctamente al ticket"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticket_id:
+ *                       type: integer
+ *                       example: 22
+ *                     equipo_id:
+ *                       type: integer
+ *                       example: 9
+ *                     nombre_equipo:
+ *                       type: string
+ *                       example: "Computador HP EliteDesk 800 G6"
+ *                     descripcion:
+ *                       type: string
+ *                       example: "El equipo presenta fallas intermitentes en la red"
+ *                     accion_realizada:
+ *                       type: string
+ *                       example: "Reinicio de adaptador de red y actualización de drivers"
+ *                     fecha_registro:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-10-12T04:30:00.000Z"
+ *       400:
+ *         description: Solicitud inválida o parámetros incorrectos
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "El ID del equipo es requerido y debe ser válido"
+ *               error: "EQUIPO_INVALIDO"
+ *       401:
+ *         description: Usuario no autenticado
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Usuario no autenticado"
+ *               error: "NO_AUTENTICADO"
+ *       403:
+ *         description: Permisos insuficientes
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No tienes permisos para asociar equipos a tickets"
+ *               error: "PERMISOS_INSUFICIENTES"
+ *       404:
+ *         description: Ticket o equipo no encontrado
+ *         content:
+ *           application/json:
+ *             examples:
+ *               ticket_not_found:
+ *                 summary: Ticket no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "Ticket no encontrado"
+ *                   error: "TICKET_NO_ENCONTRADO"
+ *               equipo_not_found:
+ *                 summary: Equipo no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "Equipo no encontrado"
+ *                   error: "EQUIPO_NO_ENCONTRADO"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ *               error: "INTERNAL_SERVER_ERROR"
+ */
+router.post('/:id/asignar-equipo', verifyToken, ticketsController.asignarEquipoATicket.bind(ticketsController));
+
 export default router;
