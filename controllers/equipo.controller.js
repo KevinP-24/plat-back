@@ -566,6 +566,151 @@ class EquipoController {
       });
     }
   }
+
+    /**
+   * Asigna un equipo a un usuario y registra el cambio en historial_equipos
+   * RF-07: Asignación de Equipos a Usuarios
+   * Endpoint: PUT /api/equipo/:id/asignar-usuario
+   */
+  async asignarEquipoAUsuario(req, res) {
+    try {
+      const { id } = req.params;
+      const { usuario_nuevo_id, observaciones } = req.body;
+
+      // 1️⃣ Validar ID de equipo y usuario
+      if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de equipo inválido',
+          error: 'ID_INVALIDO'
+        });
+      }
+
+      if (!usuario_nuevo_id || isNaN(parseInt(usuario_nuevo_id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'El ID del nuevo usuario es requerido y debe ser válido',
+          error: 'USUARIO_INVALIDO'
+        });
+      }
+
+      // 2️⃣ Validar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      // 3️⃣ Validar rol
+      const rol = req.user.rol_nombre?.toLowerCase();
+      if (rol !== 'administrador' && rol !== 'técnico' && rol !== 'tecnico') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para asignar equipos',
+          error: 'PERMISOS_INSUFICIENTES'
+        });
+      }
+
+      // 4️⃣ Verificar existencia del equipo
+      const equipoExistente = await sql`
+        SELECT id, estado_id, ubicacion_id, usuario_asignado_id 
+        FROM public.equipos 
+        WHERE id = ${parseInt(id)}
+      `;
+      if (equipoExistente.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipo no encontrado',
+          error: 'EQUIPO_NO_ENCONTRADO'
+        });
+      }
+      const equipo = equipoExistente[0];
+
+      // 5️⃣ Verificar que el usuario nuevo exista y esté activo
+      const usuarioNuevo = await sql`
+        SELECT id, nombres, apellidos, activo 
+        FROM public.usuarios 
+        WHERE id = ${parseInt(usuario_nuevo_id)}
+      `;
+      if (usuarioNuevo.length === 0 || !usuarioNuevo[0].activo) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado o inactivo',
+          error: 'USUARIO_INVALIDO'
+        });
+      }
+
+      // 6️⃣ Actualizar el equipo
+      const equipoActualizado = await sql`
+        UPDATE public.equipos
+        SET usuario_asignado_id = ${parseInt(usuario_nuevo_id)},
+            fecha_actualizacion = NOW()
+        WHERE id = ${parseInt(id)}
+        RETURNING id, nombre, usuario_asignado_id, estado_id, ubicacion_id, fecha_actualizacion
+      `;
+
+      // 7️⃣ Registrar en historial_equipos
+      await sql`
+        INSERT INTO public.historial_equipos (
+          equipo_id,
+          tipo_cambio,
+          estado_anterior_id,
+          estado_nuevo_id,
+          usuario_anterior_id,
+          usuario_nuevo_id,
+          ubicacion_anterior_id,
+          ubicacion_nueva_id,
+          observaciones,
+          usuario_responsable_id,
+          fecha_cambio
+        )
+        VALUES (
+          ${parseInt(id)},
+          'Asignación de usuario',
+          ${equipo.estado_id || null},
+          ${equipoActualizado[0].estado_id || null},
+          ${equipo.usuario_asignado_id || null},
+          ${parseInt(usuario_nuevo_id)},
+          ${equipo.ubicacion_id || null},
+          ${equipoActualizado[0].ubicacion_id || null},
+          ${observaciones || 'Asignación de equipo a usuario'},
+          ${req.user.id},
+          NOW()
+        )
+      `;
+
+      // 8️⃣ Respuesta exitosa
+      return res.status(200).json({
+        success: true,
+        message: 'Equipo asignado correctamente al usuario',
+        data: {
+          equipo_id: equipoActualizado[0].id,
+          nombre_equipo: equipoActualizado[0].nombre,
+          usuario_nuevo_id: usuarioNuevo[0].id,
+          nombre_usuario: `${usuarioNuevo[0].nombres} ${usuarioNuevo[0].apellidos}`,
+          fecha_cambio: equipoActualizado[0].fecha_actualizacion,
+          observaciones: observaciones || 'Asignación de equipo a usuario'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error al asignar equipo a usuario:', {
+        error: error.message,
+        stack: error.stack,
+        user_id: req.user?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
+      });
+    }
+  }
+
 }
 
 export default EquipoController;
