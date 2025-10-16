@@ -1897,7 +1897,153 @@ class TicketsController {
       });
     }
   }
-  
+  /**
+   * Asocia un equipo a un ticket y registra el cambio en historial_equipos
+   * RF-08: Relación de Equipos con Tickets e Historial de Incidencias
+   * Endpoint: POST /api/tickets/:id/asignar-equipo
+   */
+  async asignarEquipoATicket(req, res) {
+    try {
+      const { id } = req.params; // ID del ticket
+      const { equipo_id, descripcion, accion_realizada } = req.body;
+
+      // 1️⃣ Validar ticket_id y equipo_id
+      if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de ticket inválido',
+          error: 'ID_INVALIDO'
+        });
+      }
+
+      if (!equipo_id || isNaN(parseInt(equipo_id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'El ID del equipo es requerido y debe ser válido',
+          error: 'EQUIPO_INVALIDO'
+        });
+      }
+
+      // 2️⃣ Verificar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      // 3️⃣ Validar rol autorizado
+      const rol = req.user.rol_nombre?.toLowerCase();
+      if (rol !== 'administrador' && rol !== 'técnico' && rol !== 'tecnico') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para asociar equipos a tickets',
+          error: 'PERMISOS_INSUFICIENTES'
+        });
+      }
+
+      // 4️⃣ Verificar existencia del ticket
+      const ticket = await sql`
+        SELECT id, titulo, descripcion, estado_id, equipo_afectado_id
+        FROM public.tickets
+        WHERE id = ${parseInt(id)}
+      `;
+      if (ticket.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Ticket no encontrado',
+          error: 'TICKET_NO_ENCONTRADO'
+        });
+      }
+
+      // 5️⃣ Verificar existencia del equipo
+      const equipo = await sql`
+        SELECT id, nombre, estado_id, ubicacion_id, usuario_asignado_id
+        FROM public.equipos
+        WHERE id = ${parseInt(equipo_id)}
+      `;
+      if (equipo.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipo no encontrado',
+          error: 'EQUIPO_NO_ENCONTRADO'
+        });
+      }
+
+      // 6️⃣ Actualizar ticket con el equipo asociado
+      const ticketActualizado = await sql`
+        UPDATE public.tickets
+        SET equipo_afectado_id = ${parseInt(equipo_id)},
+            fecha_actualizacion = NOW()
+        WHERE id = ${parseInt(id)}
+        RETURNING id, numero_ticket, titulo, equipo_afectado_id, fecha_actualizacion
+      `;
+
+      // 7️⃣ Registrar en historial_equipos
+      await sql`
+        INSERT INTO public.historial_equipos (
+          equipo_id,
+          tipo_cambio,
+          estado_anterior_id,
+          estado_nuevo_id,
+          usuario_anterior_id,
+          usuario_nuevo_id,
+          ubicacion_anterior_id,
+          ubicacion_nueva_id,
+          observaciones,
+          usuario_responsable_id,
+          fecha_cambio
+        )
+        VALUES (
+          ${parseInt(equipo_id)},
+          'Asociación con ticket',
+          ${equipo[0].estado_id || null},
+          ${equipo[0].estado_id || null},
+          ${equipo[0].usuario_asignado_id || null},
+          ${equipo[0].usuario_asignado_id || null},
+          ${equipo[0].ubicacion_id || null},
+          ${equipo[0].ubicacion_id || null},
+          ${descripcion || 'Equipo asociado al ticket de soporte'},
+          ${req.user.id},
+          NOW()
+        )
+      `;
+
+      // 8️⃣ Log para auditoría
+      console.log('🧾 Equipo asociado a ticket:', {
+        ticket_id: id,
+        equipo_id: equipo_id,
+        responsable: req.user.id,
+        rol: req.user.rol_nombre,
+        timestamp: new Date().toISOString()
+      });
+
+      // 9️⃣ Respuesta exitosa
+      return res.status(200).json({
+        success: true,
+        message: 'Equipo asociado correctamente al ticket',
+        data: {
+          ticket_id: ticketActualizado[0].id,
+          numero_ticket: ticketActualizado[0].numero_ticket,
+          titulo: ticketActualizado[0].titulo,
+          equipo_id: parseInt(equipo_id),
+          nombre_equipo: equipo[0].nombre,
+          descripcion: descripcion || 'Asociación de equipo al ticket',
+          accion_realizada: accion_realizada || null,
+          fecha_registro: ticketActualizado[0].fecha_actualizacion
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error al asociar equipo a ticket:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message || 'INTERNAL_SERVER_ERROR'
+      });
+    }
+  }
 }
 
 export default TicketsController;

@@ -634,4 +634,133 @@ router.post('/', verifyToken, requireAdmin, equipoController.crearEquipo.bind(eq
  */
 router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.bind(equipoController));
 
+/**
+ * @swagger
+ * /api/equipo/{id}/asignar-usuario:
+ *   put:
+ *     summary: Asigna un equipo a un usuario del sistema
+ *     description: |
+ *       Permite asignar un equipo existente a un usuario activo en el sistema.
+ *       Solo los roles **Administrador** o **Técnico** pueden realizar esta acción.
+ *       
+ *       Al asignar un equipo, se actualiza el campo `usuario_asignado_id` en la tabla **equipos**
+ *       y se registra automáticamente el cambio en el historial (**historial_equipos**),
+ *       incluyendo los estados, ubicaciones y usuario anterior.
+ *     tags: [Equipo]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: ID único del equipo a asignar
+ *         example: 9
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - usuario_nuevo_id
+ *             properties:
+ *               usuario_nuevo_id:
+ *                 type: integer
+ *                 description: ID del usuario al que se asignará el equipo
+ *                 example: 5
+ *               observaciones:
+ *                 type: string
+ *                 description: Comentario o motivo de la asignación
+ *                 example: "Asignación temporal al departamento de ingeniería"
+ *     responses:
+ *       200:
+ *         description: Equipo asignado correctamente al usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Equipo asignado correctamente al usuario"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     equipo_id:
+ *                       type: integer
+ *                       example: 9
+ *                     nombre_equipo:
+ *                       type: string
+ *                       example: "Impresora HP LaserJet 2035"
+ *                     usuario_nuevo_id:
+ *                       type: integer
+ *                       example: 5
+ *                     nombre_usuario:
+ *                       type: string
+ *                       example: "Juan Pérez García"
+ *                     fecha_cambio:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-10-11T15:42:00.000Z"
+ *                     observaciones:
+ *                       type: string
+ *                       example: "Asignación temporal al departamento de ingeniería"
+ *       400:
+ *         description: Solicitud inválida o datos incorrectos
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "El ID del nuevo usuario es requerido y debe ser válido"
+ *               error: "USUARIO_INVALIDO"
+ *       401:
+ *         description: Usuario no autenticado
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Usuario no autenticado"
+ *               error: "NO_AUTENTICADO"
+ *       403:
+ *         description: Permisos insuficientes
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No tienes permisos para asignar equipos"
+ *               error: "PERMISOS_INSUFICIENTES"
+ *       404:
+ *         description: Equipo o usuario no encontrado
+ *         content:
+ *           application/json:
+ *             examples:
+ *               equipo_not_found:
+ *                 summary: Equipo no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "Equipo no encontrado"
+ *                   error: "EQUIPO_NO_ENCONTRADO"
+ *               user_not_found:
+ *                 summary: Usuario no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "Usuario no encontrado o inactivo"
+ *                   error: "USUARIO_INVALIDO"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ *               error: "INTERNAL_SERVER_ERROR"
+ */
+router.put('/:id/asignar-usuario', verifyToken, equipoController.asignarEquipoAUsuario.bind(equipoController));
+
 export default router;
