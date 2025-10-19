@@ -319,3 +319,76 @@ describe('Middleware verifyActiveUser', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA logAccess
+// ============================================================================
+
+describe('Middleware logAccess', () => {
+    let req, res, next, consoleLogSpy;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(() => 'TestUserAgent'), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {};
+      next = jest.fn();
+      consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+    });
+  
+    it('debe registrar acceso si hay usuario autenticado', () => {
+      req.user = {
+        id: 1,
+        email: 'test@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+  
+      logAccess(req, res, next);
+  
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        'Acceso autenticado:', 
+        expect.objectContaining({
+          user_id: 1,
+          email: 'test@epa.gov.co',
+          role: 'tecnico',
+          endpoint: 'GET /test',
+          ip: '127.0.0.1'
+        })
+      );
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('no debe registrar acceso si no hay usuario autenticado', () => {
+      req.user = null;
+  
+      logAccess(req, res, next);
+  
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe continuar incluso si hay error en el log', () => {
+      req.user = {
+        id: 1,
+        email: 'test@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+  
+      consoleLogSpy.mockImplementation(() => {
+        throw new Error('Log error');
+      });
+  
+      expect(() => logAccess(req, res, next)).toThrow();
+    });
+  });
+  
+  
