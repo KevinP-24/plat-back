@@ -490,3 +490,174 @@ describe('AuthController - logout', () => {
   });
   
   
+
+// ============================================================================
+// TESTS PARA verificarSesion
+// ============================================================================
+
+describe('AuthController - verificarSesion', () => {
+    let req, res, consoleErrorSpy;
+  
+    beforeEach(() => {
+      req = {
+        user: {
+          id: 1,
+          email: 'test@epa.gov.co',
+          rol_id: 2,
+          rol_nombre: 'tecnico',
+          token_info: {
+            exp: Date.now() / 1000 + 3600,
+            iat: Date.now() / 1000
+          }
+        }
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+  
+    it('debe retornar información del usuario si la sesión es válida', async () => {
+      mockSql.mockResolvedValue([{
+        id: 1,
+        email: 'test@epa.gov.co',
+        nombres: 'Test',
+        apellidos: 'User',
+        telefono: '1234567890',
+        departamento: 'TI',
+        cargo: 'Técnico',
+        rol_id: 2,
+        rol_nombre: 'tecnico',
+        activo: true,
+        rol_activo: true,
+        ultimo_acceso: new Date()
+      }]);
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          user: expect.objectContaining({
+            id: 1,
+            email: 'test@epa.gov.co',
+            nombres: 'Test',
+            apellidos: 'User'
+          }),
+          permisos: expect.any(Object)
+        })
+      }));
+    });
+  
+    it('debe retornar 401 si el usuario no existe', async () => {
+      mockSql.mockResolvedValue([]);
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'INVALID_SESSION'
+      }));
+    });
+  
+    it('debe retornar 401 si el usuario está inactivo', async () => {
+      mockSql.mockResolvedValue([{
+        id: 1,
+        email: 'test@epa.gov.co',
+        nombres: 'Test',
+        apellidos: 'User',
+        rol_id: 2,
+        rol_nombre: 'tecnico',
+        activo: false,
+        rol_activo: true,
+        ultimo_acceso: new Date()
+      }]);
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'INVALID_SESSION'
+      }));
+    });
+  
+    it('debe incluir información de permisos correctos', async () => {
+      mockSql.mockResolvedValue([{
+        id: 1,
+        email: 'admin@epa.gov.co',
+        nombres: 'Admin',
+        apellidos: 'User',
+        telefono: '1234567890',
+        departamento: 'TI',
+        cargo: 'Administrador',
+        rol_id: 1,
+        rol_nombre: 'administrador',
+        activo: true,
+        rol_activo: true,
+        ultimo_acceso: new Date()
+      }]);
+  
+      req.user.rol_nombre = 'administrador';
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          permisos: {
+            es_admin: true,
+            es_tecnico: false,
+            es_usuario_final: false
+          }
+        })
+      }));
+    });
+  
+    it('debe incluir token_info en la respuesta', async () => {
+      mockSql.mockResolvedValue([{
+        id: 1,
+        email: 'test@epa.gov.co',
+        nombres: 'Test',
+        apellidos: 'User',
+        telefono: '1234567890',
+        departamento: 'TI',
+        cargo: 'Técnico',
+        rol_id: 2,
+        rol_nombre: 'tecnico',
+        activo: true,
+        rol_activo: true,
+        ultimo_acceso: new Date()
+      }]);
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          user: expect.objectContaining({
+            session_info: req.user.token_info
+          })
+        })
+      }));
+    });
+  
+    it('debe retornar 500 si hay error en la base de datos', async () => {
+      mockSql.mockRejectedValue(new Error('Database error'));
+  
+      await authController.verificarSesion(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR'
+      }));
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
