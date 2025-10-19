@@ -656,6 +656,137 @@ describe('Helper userHasRole', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA addPermissions
+// ============================================================================
+
+describe('Middleware addPermissions', () => {
+    let req, res, next, consoleErrorSpy;
+  
+    beforeEach(() => {
+      req = { 
+        user: null
+      };
+      res = {};
+      next = jest.fn();
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+  
+    it('debe agregar permisos vacíos si no hay usuario', () => {
+      req.user = null;
+  
+      addPermissions(req, res, next);
+  
+      expect(req.permissions).toEqual({
+        isAdmin: false,
+        isTechnician: false,
+        isEndUser: false,
+        canManageUsers: false,
+        canManageTickets: false,
+        canManageInventory: false,
+        canViewReports: false
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe agregar permisos de administrador correctamente', () => {
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockImplementation((user, roles) => {
+        if (roles === ROLES.ADMINISTRADOR) return true;
+        if (Array.isArray(roles) && roles.includes(ROLES.ADMINISTRADOR)) return true;
+        return false;
+      });
+  
+      addPermissions(req, res, next);
+  
+      expect(req.permissions).toEqual({
+        isAdmin: true,
+        isTechnician: false,
+        isEndUser: false,
+        canManageUsers: true,
+        canManageTickets: true,
+        canManageInventory: true,
+        canViewReports: true
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe agregar permisos de técnico correctamente', () => {
+      req.user = {
+        id: 2,
+        email: 'tech@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      hasRoleMock.mockImplementation((user, roles) => {
+        if (roles === ROLES.TECNICO) return true;
+        if (Array.isArray(roles) && roles.includes(ROLES.TECNICO)) return true;
+        return false;
+      });
+  
+      addPermissions(req, res, next);
+  
+      expect(req.permissions).toEqual({
+        isAdmin: false,
+        isTechnician: true,
+        isEndUser: false,
+        canManageUsers: false,
+        canManageTickets: true,
+        canManageInventory: true,
+        canViewReports: true
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe agregar permisos de usuario final correctamente', () => {
+      req.user = {
+        id: 3,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'usuario final'
+      };
+      hasRoleMock.mockImplementation((user, roles) => {
+        if (roles === ROLES.USUARIO_FINAL) return true;
+        return false;
+      });
+  
+      addPermissions(req, res, next);
+  
+      expect(req.permissions).toEqual({
+        isAdmin: false,
+        isTechnician: false,
+        isEndUser: true,
+        canManageUsers: false,
+        canManageTickets: false,
+        canManageInventory: false,
+        canViewReports: false
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe continuar incluso si hay un error', () => {
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockImplementation(() => {
+        throw new Error('Error inesperado');
+      });
+  
+      addPermissions(req, res, next);
+  
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+  });
   
   
   
