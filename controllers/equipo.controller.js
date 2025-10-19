@@ -437,6 +437,7 @@ class EquipoController {
 
   /**
    * Obtiene todos los equipos
+   * (Ahora incluye el nombre y correo del usuario asignado)
    */
   async obtenerEquipos(req, res) {
     try {
@@ -444,37 +445,41 @@ class EquipoController {
       
       let baseQuery = sql`
         SELECT 
-          id, 
-          codigo_inventario,
-          nombre,
-          descripcion,
-          tipo_equipo_id,
-          marca_id,
-          modelo,
-          numero_serie,
-          especificaciones,
-          estado_id,
-          ubicacion_id,
-          usuario_asignado_id,
-          fecha_adquisicion,
-          fecha_garantia,
-          valor_compra,
-          proveedor,
-          observaciones,
-          fecha_creacion,
-          fecha_actualizacion
-        FROM public.equipos
+          e.id, 
+          e.codigo_inventario,
+          e.nombre,
+          e.descripcion,
+          e.tipo_equipo_id,
+          e.marca_id,
+          e.modelo,
+          e.numero_serie,
+          e.especificaciones,
+          e.estado_id,
+          e.ubicacion_id,
+          e.usuario_asignado_id,
+          u.nombres AS nombre_usuario_asignado,
+          u.apellidos AS apellido_usuario_asignado,
+          u.email AS correo_usuario_asignado,
+          e.fecha_adquisicion,
+          e.fecha_garantia,
+          e.valor_compra,
+          e.proveedor,
+          e.observaciones,
+          e.fecha_creacion,
+          e.fecha_actualizacion
+        FROM public.equipos e
+        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
       `;
 
       const conditions = [];
       if (estado_id !== undefined) {
-        conditions.push(sql`estado_id = ${parseInt(estado_id)}`);
+        conditions.push(sql`e.estado_id = ${parseInt(estado_id)}`);
       }
       if (tipo_equipo_id !== undefined) {
-        conditions.push(sql`tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
+        conditions.push(sql`e.tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
       }
       if (usuario_asignado_id !== undefined) {
-        conditions.push(sql`usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
+        conditions.push(sql`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
       }
 
       if (conditions.length > 0) {
@@ -486,16 +491,24 @@ class EquipoController {
 
       const finalQuery = sql`
         ${baseQuery}
-        ORDER BY codigo_inventario ASC 
+        ORDER BY e.codigo_inventario ASC 
         LIMIT ${parseInt(limit)} 
         OFFSET ${parseInt(offset)}
       `;
 
       const equipos = await finalQuery;
 
+      // ✅ Unificamos nombre completo del usuario antes de enviar
+      const equiposFormateados = equipos.map(eq => ({
+        ...eq,
+        nombre_usuario_asignado: eq.nombre_usuario_asignado
+          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
+          : null
+      }));
+
       res.status(200).json({
         success: true,
-        data: equipos
+        data: equiposFormateados
       });
 
     } catch (error) {
@@ -509,6 +522,7 @@ class EquipoController {
 
   /**
    * Obtiene un equipo por ID
+   * (Ahora incluye el nombre y correo del usuario asignado)
    */
   async obtenerEquipoPorId(req, res) {
     try {
@@ -523,27 +537,31 @@ class EquipoController {
 
       const equipos = await sql`
         SELECT 
-          id, 
-          codigo_inventario,
-          nombre,
-          descripcion,
-          tipo_equipo_id,
-          marca_id,
-          modelo,
-          numero_serie,
-          especificaciones,
-          estado_id,
-          ubicacion_id,
-          usuario_asignado_id,
-          fecha_adquisicion,
-          fecha_garantia,
-          valor_compra,
-          proveedor,
-          observaciones,
-          fecha_creacion,
-          fecha_actualizacion
-        FROM public.equipos 
-        WHERE id = ${parseInt(id)}
+          e.id, 
+          e.codigo_inventario,
+          e.nombre,
+          e.descripcion,
+          e.tipo_equipo_id,
+          e.marca_id,
+          e.modelo,
+          e.numero_serie,
+          e.especificaciones,
+          e.estado_id,
+          e.ubicacion_id,
+          e.usuario_asignado_id,
+          u.nombres AS nombre_usuario_asignado,
+          u.apellidos AS apellido_usuario_asignado,
+          u.email AS correo_usuario_asignado,
+          e.fecha_adquisicion,
+          e.fecha_garantia,
+          e.valor_compra,
+          e.proveedor,
+          e.observaciones,
+          e.fecha_creacion,
+          e.fecha_actualizacion
+        FROM public.equipos e
+        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
+        WHERE e.id = ${parseInt(id)}
       `;
 
       if (equipos.length === 0) {
@@ -553,9 +571,17 @@ class EquipoController {
         });
       }
 
+      const eq = equipos[0];
+      const equipoFormateado = {
+        ...eq,
+        nombre_usuario_asignado: eq.nombre_usuario_asignado
+          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
+          : null
+      };
+
       res.status(200).json({
         success: true,
-        data: equipos[0]
+        data: equipoFormateado
       });
 
     } catch (error) {
