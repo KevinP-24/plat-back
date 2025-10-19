@@ -602,6 +602,60 @@ describe('Middleware requireDepartmentAccess', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA userHasRole
+// ============================================================================
+
+describe('Helper userHasRole', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+  
+    it('debe retornar false si no hay usuario', () => {
+      hasRoleMock.mockReturnValue(false);
+  
+      const result = userHasRole(null, ROLES.ADMINISTRADOR);
+  
+      expect(result).toBe(false);
+    });
+  
+    it('debe retornar false si el usuario no tiene rol_nombre', () => {
+      const user = { id: 1, email: 'test@epa.gov.co' };
+      hasRoleMock.mockReturnValue(false);
+  
+      const result = userHasRole(user, ROLES.ADMINISTRADOR);
+  
+      expect(result).toBe(false);
+    });
+  
+    it('debe retornar true si el usuario tiene el rol', () => {
+      const user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockReturnValue(true);
+  
+      const result = userHasRole(user, ROLES.ADMINISTRADOR);
+  
+      expect(result).toBe(true);
+    });
+  
+    it('debe funcionar con múltiples roles', () => {
+      const user = {
+        id: 2,
+        email: 'tech@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      hasRoleMock.mockReturnValue(true);
+  
+      const result = userHasRole(user, [ROLES.ADMINISTRADOR, ROLES.TECNICO]);
+  
+      expect(result).toBe(true);
+    });
+  });
+  
+  
   
   
   
