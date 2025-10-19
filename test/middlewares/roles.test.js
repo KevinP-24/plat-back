@@ -24,3 +24,21 @@ const {
   userHasRole
 } = await import('../../middlewares/roles.js');
 
+
+
+// ============================================================================
+// TESTS PARA CONSTANTES
+// ============================================================================
+
+describe('Constantes ROLES', () => {
+    it('debe tener los roles correctos definidos', () => {
+      expect(ROLES).toEqual({
+        ADMINISTRADOR: 'administrador',
+        TECNICO: 'tecnico',
+        USUARIO_FINAL: 'usuario final'
+      });
+    });
+  });
+  
+  
+  
