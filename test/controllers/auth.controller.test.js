@@ -413,3 +413,80 @@ describe('AuthController - login', () => {
   
   
   
+// ============================================================================
+// TESTS PARA logout
+// ============================================================================
+
+describe('AuthController - logout', () => {
+    let req, res, consoleLogSpy, consoleErrorSpy;
+  
+    beforeEach(() => {
+      req = {
+        user: {
+          id: 1,
+          email: 'test@epa.gov.co',
+          rol_nombre: 'tecnico'
+        },
+        ip: '127.0.0.1',
+        get: jest.fn(() => 'TestUserAgent')
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+  
+    it('debe cerrar sesión exitosamente', async () => {
+      await authController.logout(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        message: 'Sesión cerrada exitosamente',
+        data: expect.objectContaining({
+          logout_time: expect.any(String)
+        })
+      }));
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Logout exitoso'),
+        expect.any(Object)
+      );
+    });
+  
+    it('debe registrar información del usuario en el log', async () => {
+      await authController.logout(req, res);
+  
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Logout exitoso'),
+        expect.objectContaining({
+          user_id: 1,
+          email: 'test@epa.gov.co',
+          ip: '127.0.0.1'
+        })
+      );
+    });
+  
+    it('debe retornar 500 si hay un error inesperado', async () => {
+      // Forzar un error
+      req.user = null;
+      
+      await authController.logout(req, res);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR'
+      }));
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+  
+  
