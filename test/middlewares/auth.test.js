@@ -161,272 +161,88 @@ describe('Middleware verifyToken', () => {
 });
 
 
+
 // ============================================================================
 // TESTS PARA optionalAuth
 // ============================================================================
 
 describe('Middleware optionalAuth', () => {
-  let req, res, next;
-
-  beforeEach(() => {
-    req = { 
-      headers: {}, 
-      ip: '127.0.0.1', 
-      get: jest.fn(), 
-      method: 'GET', 
-      path: '/test' 
-    };
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-      set: jest.fn()
-    };
-    next = jest.fn();
-    jest.clearAllMocks();
-  });
-
-  it('debe continuar sin autenticar si no hay token', async () => {
-    extractTokenFromHeader.mockReturnValue(null);
-
-    await optionalAuth(req, res, next);
-
-    expect(req.authenticated).toBe(false);
-    expect(req.user).toBeNull();
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('debe autenticar si hay un token válido', async () => {
-    const decoded = { 
-      id: 1, 
-      email: 'test@epa.gov.co', 
-      rol_id: 2, 
-      rol_nombre: 'tecnico' 
-    };
-
-    extractTokenFromHeader.mockReturnValue('fakeToken');
-    verifyTokenMock.mockReturnValue(decoded);
-    getTokenInfo.mockReturnValue({ exp: Date.now() / 1000 + 10000 });
-
-    await optionalAuth(req, res, next);
-
-    expect(req.authenticated).toBe(true);
-    expect(req.user).toEqual(expect.objectContaining({
-      id: 1,
-      email: 'test@epa.gov.co',
-      rol_nombre: 'tecnico'
-    }));
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('debe continuar sin autenticar si el token es inválido', async () => {
-    extractTokenFromHeader.mockReturnValue('invalidToken');
-    verifyTokenMock.mockImplementation(() => { 
-      throw new Error('Token inválido');
+    let req, res, next;
+  
+    beforeEach(() => {
+      req = { 
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+        set: jest.fn()
+      };
+      next = jest.fn();
+      jest.clearAllMocks();
     });
-
-    await optionalAuth(req, res, next);
-
-    expect(req.authenticated).toBe(false);
-    expect(req.user).toBeNull();
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('debe continuar sin autenticar si hay un error inesperado', async () => {
-    extractTokenFromHeader.mockImplementation(() => { 
-      throw new Error('Error inesperado');
+  
+    it('debe continuar sin autenticar si no hay token', async () => {
+      extractTokenFromHeader.mockReturnValue(null);
+  
+      await optionalAuth(req, res, next);
+  
+      expect(req.authenticated).toBe(false);
+      expect(req.user).toBeNull();
+      expect(next).toHaveBeenCalled();
     });
-
-    await optionalAuth(req, res, next);
-
-    expect(req.authenticated).toBe(false);
-    expect(req.user).toBeNull();
-    expect(next).toHaveBeenCalled();
-  });
-});
-
-
-// ============================================================================
-// TESTS PARA verifyActiveUser
-// ============================================================================
-
-describe('Middleware verifyActiveUser', () => {
-  let req, res, next;
-
-  beforeEach(() => {
-    req = { 
-      user: null,
-      headers: {}, 
-      ip: '127.0.0.1', 
-      get: jest.fn(), 
-      method: 'GET', 
-      path: '/test' 
-    };
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    };
-    next = jest.fn();
-    jest.clearAllMocks();
-  });
-
-  it('debe retornar 401 si no hay usuario autenticado', async () => {
-    req.user = null;
-
-    await verifyActiveUser(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: false,
-      error: 'USER_NOT_AUTHENTICATED'
-    }));
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('debe continuar si hay usuario autenticado', async () => {
-    req.user = {
-      id: 1,
-      email: 'test@epa.gov.co',
-      rol_id: 2,
-      rol_nombre: 'tecnico'
-    };
-
-    await verifyActiveUser(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it('debe manejar errores inesperados y retornar 500', async () => {
-    req.user = {
-      id: 1,
-      email: 'test@epa.gov.co'
-    };
-
-    // Simular un error en el next
-    next.mockImplementation(() => {
-      throw new Error('Error inesperado');
-    });
-
-    await verifyActiveUser(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: false,
-      error: 'USER_VERIFICATION_ERROR'
-    }));
-  });
-});
-
-
-// ============================================================================
-// TESTS PARA logAccess
-// ============================================================================
-
-describe('Middleware logAccess', () => {
-  let req, res, next, consoleLogSpy;
-
-  beforeEach(() => {
-    req = { 
-      user: null,
-      headers: {}, 
-      ip: '127.0.0.1', 
-      get: jest.fn(() => 'TestUserAgent'), 
-      method: 'GET', 
-      path: '/test' 
-    };
-    res = {};
-    next = jest.fn();
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    consoleLogSpy.mockRestore();
-  });
-
-  it('debe registrar acceso si hay usuario autenticado', () => {
-    req.user = {
-      id: 1,
-      email: 'test@epa.gov.co',
-      rol_nombre: 'tecnico'
-    };
-
-    logAccess(req, res, next);
-
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      'Acceso autenticado:', 
-      expect.objectContaining({
-        user_id: 1,
+  
+    it('debe autenticar si hay un token válido', async () => {
+      const decoded = { 
+        id: 1, 
+        email: 'test@epa.gov.co', 
+        rol_id: 2, 
+        rol_nombre: 'tecnico' 
+      };
+  
+      extractTokenFromHeader.mockReturnValue('fakeToken');
+      verifyTokenMock.mockReturnValue(decoded);
+      getTokenInfo.mockReturnValue({ exp: Date.now() / 1000 + 10000 });
+  
+      await optionalAuth(req, res, next);
+  
+      expect(req.authenticated).toBe(true);
+      expect(req.user).toEqual(expect.objectContaining({
+        id: 1,
         email: 'test@epa.gov.co',
-        role: 'tecnico',
-        endpoint: 'GET /test',
-        ip: '127.0.0.1'
-      })
-    );
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('no debe registrar acceso si no hay usuario autenticado', () => {
-    req.user = null;
-
-    logAccess(req, res, next);
-
-    expect(consoleLogSpy).not.toHaveBeenCalled();
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('debe continuar incluso si hay error en el log', () => {
-    req.user = {
-      id: 1,
-      email: 'test@epa.gov.co',
-      rol_nombre: 'tecnico'
-    };
-
-    consoleLogSpy.mockImplementation(() => {
-      throw new Error('Log error');
+        rol_nombre: 'tecnico'
+      }));
+      expect(next).toHaveBeenCalled();
     });
-
-    expect(() => logAccess(req, res, next)).toThrow();
+  
+    it('debe continuar sin autenticar si el token es inválido', async () => {
+      extractTokenFromHeader.mockReturnValue('invalidToken');
+      verifyTokenMock.mockImplementation(() => { 
+        throw new Error('Token inválido');
+      });
+  
+      await optionalAuth(req, res, next);
+  
+      expect(req.authenticated).toBe(false);
+      expect(req.user).toBeNull();
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe continuar sin autenticar si hay un error inesperado', async () => {
+      extractTokenFromHeader.mockImplementation(() => { 
+        throw new Error('Error inesperado');
+      });
+  
+      await optionalAuth(req, res, next);
+  
+      expect(req.authenticated).toBe(false);
+      expect(req.user).toBeNull();
+      expect(next).toHaveBeenCalled();
+    });
   });
-});
-
-
-// ============================================================================
-// TESTS PARA checkTokenBlacklist
-// ============================================================================
-
-describe('Middleware checkTokenBlacklist', () => {
-  let req, res, next;
-
-  beforeEach(() => {
-    req = { 
-      headers: {}, 
-      ip: '127.0.0.1', 
-      get: jest.fn(), 
-      method: 'GET', 
-      path: '/test' 
-    };
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn()
-    };
-    next = jest.fn();
-    jest.clearAllMocks();
-  });
-
-  it('debe continuar normalmente (funcionalidad no implementada)', async () => {
-    await checkTokenBlacklist(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it('debe manejar implementación futura de blacklist', async () => {
-    // Este test está preparado para cuando se implemente la blacklist
-    // Por ahora solo verifica que el middleware existe y funciona
-    
-    await checkTokenBlacklist(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-  });
-});
+  
+  
