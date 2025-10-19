@@ -246,3 +246,76 @@ describe('Middleware optionalAuth', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA verifyActiveUser
+// ============================================================================
+
+describe('Middleware verifyActiveUser', () => {
+    let req, res, next;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      jest.clearAllMocks();
+    });
+  
+    it('debe retornar 401 si no hay usuario autenticado', async () => {
+      req.user = null;
+  
+      await verifyActiveUser(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'USER_NOT_AUTHENTICATED'
+      }));
+      expect(next).not.toHaveBeenCalled();
+    });
+  
+    it('debe continuar si hay usuario autenticado', async () => {
+      req.user = {
+        id: 1,
+        email: 'test@epa.gov.co',
+        rol_id: 2,
+        rol_nombre: 'tecnico'
+      };
+  
+      await verifyActiveUser(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  
+    it('debe manejar errores inesperados y retornar 500', async () => {
+      req.user = {
+        id: 1,
+        email: 'test@epa.gov.co'
+      };
+  
+      // Simular un error en el next
+      next.mockImplementation(() => {
+        throw new Error('Error inesperado');
+      });
+  
+      await verifyActiveUser(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'USER_VERIFICATION_ERROR'
+      }));
+    });
+  });
+  
+  
