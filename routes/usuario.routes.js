@@ -1,5 +1,6 @@
 import express from 'express';
 import UsuariosController from '../controllers/usuario.controller.js';
+import { verifyToken } from '../middlewares/auth.js';
 
 const router = express.Router();
 const usuariosController = new UsuariosController();
@@ -889,5 +890,32 @@ router.post('/activar', usuariosController.activarCuenta);
  *         message: "Descripción del error"
  */
 router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion);
+
+/**
+ * @swagger
+ * /api/usuarios/{id}/baja:
+ *   patch:
+ *     summary: Dar de baja lógica a un usuario (activo = false)
+ *     description: Desactiva la cuenta del usuario sin eliminar su registro de la base de datos.
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *         example: 10
+ *     responses:
+ *       200:
+ *         description: Usuario dado de baja correctamente
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.patch('/:id/baja', verifyToken, usuariosController.darDeBajaUsuario.bind(usuariosController));
 
 export default router;
