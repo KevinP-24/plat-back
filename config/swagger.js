@@ -539,6 +539,59 @@ const swaggerDefinition = {
         }
       }
     },
+    // Esquemas para Historial de Equipos
+    HistorialEquipo: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'integer',
+          description: 'ID del evento de historial',
+          example: 1
+        },
+        equipo_id: {
+          type: 'integer',
+          description: 'ID del equipo relacionado',
+          example: 5
+        },
+        fecha_cambio: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Fecha y hora en que ocurrió el evento',
+          example: '2025-09-12T15:45:00Z'
+        },
+        tipo_cambio: {
+          type: 'string',
+          description: 'Tipo de evento registrado',
+          example: 'Resolución de ticket'
+        },
+        descripcion: {
+          type: 'string',
+          description: 'Descripción del evento o acción realizada',
+          example: 'Ticket TICK-20251001-0005 resuelto correctamente'
+        },
+        accion_realizada: {
+          type: 'string',
+          description: 'Detalle técnico o acción realizada',
+          example: 'Reinstalación del controlador de red'
+        },
+        usuario_responsable: {
+          type: 'string',
+          description: 'Nombre del usuario o técnico que realizó la acción',
+          example: 'María Gómez'
+        },
+        usuario_responsable_id: {
+          type: 'integer',
+          description: 'ID del usuario responsable',
+          example: 8
+        },
+        ticket_id: {
+          type: 'integer',
+          nullable: true,
+          description: 'ID del ticket relacionado (si aplica)',
+          example: 27
+        }
+      }
+    },
     // Esquemas para Categorías
     Categoria: {
       type: 'object',
@@ -743,7 +796,8 @@ const options = {
     './routes/prioridades.js',
     './routes/estadoTicket.js',
     './routes/equipo.js',
-    './routes/categoria.js'
+    './routes/categoria.js',
+    './routes/historialEquipo.routes.js'
   ], // rutas donde están los comentarios JSDoc
 };
 

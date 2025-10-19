@@ -1266,6 +1266,82 @@ class UsuariosController {
       });
     }
   }
+  
+  /**
+   * PATCH /api/usuarios/:id/baja
+   * Permite dar de baja lógica a un usuario (activo = false)
+   * Solo el propio usuario o un administrador puede hacerlo.
+   */
+  async darDeBajaUsuario(req, res) {
+    try {
+      const { id } = req.params;
+      const userAuth = req.user; // viene del verifyToken
+
+      // 🔒 Si no hay token válido
+      if (!userAuth || !userAuth.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token no válido o sesión expirada',
+          error: 'UNAUTHORIZED'
+        });
+      }
+
+      // ⚠️ Validar permiso: solo él mismo o un admin
+      if (parseInt(userAuth.id) !== parseInt(id) && userAuth.rol_id !== 1) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para dar de baja a este usuario',
+          error: 'FORBIDDEN'
+        });
+      }
+
+      // Buscar usuario
+      const usuario = await sql`
+        SELECT id, activo 
+        FROM public.usuarios 
+        WHERE id = ${parseInt(id)}
+      `;
+
+      if (usuario.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      if (!usuario[0].activo) {
+        return res.status(200).json({
+          success: true,
+          message: 'El usuario ya se encuentra dado de baja'
+        });
+      }
+
+      // Dar de baja
+      await sql`
+        UPDATE public.usuarios
+        SET activo = false, fecha_actualizacion = NOW()
+        WHERE id = ${parseInt(id)}
+      `;
+
+      console.log(`🟡 Usuario ${id} dado de baja por ${userAuth.email} (${userAuth.rol_nombre})`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Usuario dado de baja correctamente'
+      });
+
+    } catch (error) {
+      console.error('❌ Error al dar de baja usuario:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  }
+
+
 }
 
 export default UsuariosController;
