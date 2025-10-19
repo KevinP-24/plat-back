@@ -20,10 +20,13 @@ try {
   console.log('  Port:', url.port);
   console.log('  Database:', url.pathname.slice(1));
   console.log('  User:', url.username);
-  console.log('  Password:', url.password ? '***' + url.password.slice(-4) : 'NO DEFINIDO');
+  console.log('  Password:', url.password ? '***' + url.password.slice(-4) : '⚠️  NO DEFINIDO');
   console.log('  SSL: require (Supabase)');
+  console.log('  Protocol:', url.protocol);
+  console.log('  Full URL Length:', DATABASE_URL.length);
 } catch (e) {
   console.error('❌ URL de base de datos inválida:', e.message);
+  console.error('DATABASE_URL value:', DATABASE_URL?.substring(0, 50) + '...');
 }
 
 // ⭐ Configuración optimizada para Supabase Transaction Pooler en Render
@@ -37,8 +40,8 @@ const sql = postgres(DATABASE_URL, {
   connect_timeout: 30,        // Timeout de conexión inicial
   max_lifetime: 60 * 30,      // Vida máxima de una conexión (30 min)
   
-  // ⭐ CRÍTICO: Transaction Pooler NO soporta prepared statements
-  prepare: false,
+  // Session Pooler SÍ soporta prepared statements (mejor performance)
+  prepare: true,
   
   // Configuración adicional
   onnotice: () => {},         // Silenciar notices de PostgreSQL
