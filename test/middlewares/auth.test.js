@@ -392,3 +392,42 @@ describe('Middleware logAccess', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA checkTokenBlacklist
+// ============================================================================
+
+describe('Middleware checkTokenBlacklist', () => {
+    let req, res, next;
+  
+    beforeEach(() => {
+      req = { 
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      jest.clearAllMocks();
+    });
+  
+    it('debe continuar normalmente (funcionalidad no implementada)', async () => {
+      await checkTokenBlacklist(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  
+    it('debe manejar implementación futura de blacklist', async () => {
+      // Este test está preparado para cuando se implemente la blacklist
+      // Por ahora solo verifica que el middleware existe y funciona
+      
+      await checkTokenBlacklist(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  });
