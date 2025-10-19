@@ -481,6 +481,128 @@ describe('Middleware requireOwnershipOrAdmin', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA requireDepartmentAccess
+// ============================================================================
+
+describe('Middleware requireDepartmentAccess', () => {
+    let req, res, next, consoleErrorSpy;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+  
+    it('debe retornar 401 si no hay usuario autenticado', () => {
+      req.user = null;
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'USER_NOT_AUTHENTICATED'
+      }));
+    });
+  
+    it('debe permitir acceso a administradores', () => {
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockReturnValueOnce(true);
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe permitir acceso a técnicos', () => {
+      req.user = {
+        id: 2,
+        email: 'tech@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      hasRoleMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe permitir acceso a usuarios finales', () => {
+      req.user = {
+        id: 3,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'usuario final'
+      };
+      hasRoleMock
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true);
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe retornar 403 si el usuario no tiene ningún rol válido', () => {
+      req.user = {
+        id: 4,
+        email: 'invalid@epa.gov.co',
+        rol_nombre: 'rol_invalido'
+      };
+      hasRoleMock.mockReturnValue(false);
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'DEPARTMENT_ACCESS_DENIED'
+      }));
+    });
+  
+    it('debe retornar 500 si hay un error inesperado', () => {
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockImplementation(() => {
+        throw new Error('Error inesperado');
+      });
+  
+      requireDepartmentAccess(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'DEPARTMENT_VERIFICATION_ERROR'
+      }));
+    });
+  });
+  
+  
+  
   
   
   
