@@ -347,6 +347,139 @@ describe('Middleware requireAnyRole', () => {
   
   
   
+// ============================================================================
+// TESTS PARA requireOwnershipOrAdmin
+// ============================================================================
+
+describe('Middleware requireOwnershipOrAdmin', () => {
+    let req, res, next, consoleWarnSpy, consoleErrorSpy;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        params: {},
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.clearAllMocks();
+    });
+  
+    afterEach(() => {
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+  
+    it('debe retornar 401 si no hay usuario autenticado', () => {
+      const middleware = requireOwnershipOrAdmin();
+      req.user = null;
+      req.params.id = '1';
+  
+      middleware(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'USER_NOT_AUTHENTICATED'
+      }));
+    });
+  
+    it('debe permitir acceso a administradores sin verificar ownership', () => {
+      const middleware = requireOwnershipOrAdmin();
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      req.params.id = '999';
+      hasRoleMock.mockReturnValue(true);
+  
+      middleware(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe permitir acceso si el usuario es el propietario', () => {
+      const middleware = requireOwnershipOrAdmin();
+      req.user = {
+        id: 5,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      req.params.id = '5';
+      hasRoleMock.mockReturnValue(false);
+  
+      middleware(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe denegar acceso si el usuario intenta acceder a datos ajenos', () => {
+      const middleware = requireOwnershipOrAdmin();
+      req.user = {
+        id: 5,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      req.params.id = '10';
+      hasRoleMock.mockReturnValue(false);
+  
+      middleware(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'OWNERSHIP_REQUIRED'
+      }));
+      expect(consoleWarnSpy).toHaveBeenCalled();
+    });
+  
+    it('debe usar nombre de parámetro personalizado', () => {
+      const middleware = requireOwnershipOrAdmin('userId');
+      req.user = {
+        id: 5,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      req.params.userId = '5';
+      hasRoleMock.mockReturnValue(false);
+  
+      middleware(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe retornar 500 si hay un error inesperado', () => {
+      const middleware = requireOwnershipOrAdmin();
+      req.user = {
+        id: 5,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      req.params.id = 'invalid';
+      hasRoleMock.mockImplementation(() => {
+        throw new Error('Error inesperado');
+      });
+  
+      middleware(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'OWNERSHIP_VERIFICATION_ERROR'
+      }));
+    });
+  });
+  
   
   
   
