@@ -169,6 +169,68 @@ describe('Middleware requireRole', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA requireAdmin
+// ============================================================================
+
+describe('Middleware requireAdmin', () => {
+    let req, res, next;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      jest.clearAllMocks();
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+  
+    afterEach(() => {
+      console.warn.mockRestore();
+      console.log.mockRestore();
+    });
+  
+    it('debe permitir acceso solo a administradores', () => {
+      req.user = {
+        id: 1,
+        email: 'admin@epa.gov.co',
+        rol_nombre: 'administrador'
+      };
+      hasRoleMock.mockReturnValue(true);
+  
+      requireAdmin(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  
+    it('debe denegar acceso a técnicos', () => {
+      req.user = {
+        id: 2,
+        email: 'tech@epa.gov.co',
+        rol_nombre: 'tecnico'
+      };
+      hasRoleMock.mockReturnValue(false);
+  
+      requireAdmin(req, res, next);
+  
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+  
+  
+  
+  
   
   
   
