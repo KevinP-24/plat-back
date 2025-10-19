@@ -302,6 +302,51 @@ describe('Middleware requireTechnicianOrAdmin', () => {
   });
   
   
+// ============================================================================
+// TESTS PARA requireAnyRole
+// ============================================================================
+
+describe('Middleware requireAnyRole', () => {
+    let req, res, next;
+  
+    beforeEach(() => {
+      req = { 
+        user: null,
+        headers: {}, 
+        ip: '127.0.0.1', 
+        get: jest.fn(), 
+        method: 'GET', 
+        path: '/test' 
+      };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn()
+      };
+      next = jest.fn();
+      jest.clearAllMocks();
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+  
+    afterEach(() => {
+      console.log.mockRestore();
+    });
+  
+    it('debe permitir acceso a cualquier rol autenticado', () => {
+      req.user = {
+        id: 3,
+        email: 'user@epa.gov.co',
+        rol_nombre: 'usuario final'
+      };
+      hasRoleMock.mockReturnValue(true);
+  
+      requireAnyRole(req, res, next);
+  
+      expect(next).toHaveBeenCalled();
+    });
+  });
+  
+  
+  
   
   
   
