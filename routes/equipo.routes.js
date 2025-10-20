@@ -126,7 +126,9 @@ const equipoController = new EquipoController();
  * /api/equipo:
  *   get:
  *     summary: Obtiene todos los equipos
- *     description: Recupera una lista de todos los equipos del inventario con filtros opcionales
+ *     description: |
+ *       Recupera una lista de todos los equipos del inventario con filtros opcionales.  
+ *       Ahora incluye los datos del **usuario asignado** (nombre completo y correo electrónico).
  *     tags: [Equipo]
  *     parameters:
  *       - in: query
@@ -176,7 +178,7 @@ const equipoController = new EquipoController();
  *               $ref: '#/components/schemas/EquipoResponse'
  *             examples:
  *               success:
- *                 summary: Respuesta exitosa
+ *                 summary: Respuesta exitosa con datos del usuario asignado
  *                 value:
  *                   success: true
  *                   data:
@@ -190,10 +192,16 @@ const equipoController = new EquipoController();
  *                       numero_serie: "HP123456789"
  *                       estado_id: 1
  *                       ubicacion_id: 1
- *                       usuario_asignado_id: 123
+ *                       usuario_asignado_id: 10
+ *                       nombre_usuario_asignado: "Administrador 1"
+ *                       correo_usuario_asignado: "jssmorales51@gmail.com"
  *                       fecha_adquisicion: "2025-01-15"
+ *                       fecha_garantia: "2027-01-15"
  *                       valor_compra: 1500000.00
  *                       proveedor: "TechSolutions S.A.S"
+ *                       observaciones: "Equipo en excelente estado"
+ *                       fecha_creacion: "2025-01-15T10:30:00.000Z"
+ *                       fecha_actualizacion: "2025-01-15T10:30:00.000Z"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -208,7 +216,10 @@ router.get('/', equipoController.obtenerEquipos);
  * /api/equipo/{id}:
  *   get:
  *     summary: Obtiene un equipo por ID
- *     description: Recupera los detalles de un equipo específico mediante su ID
+ *     description: |
+ *       Recupera los detalles de un equipo específico mediante su ID.  
+ *       Incluye información del usuario actualmente asignado al equipo, 
+ *       como su nombre completo y correo electrónico.
  *     tags: [Equipo]
  *     parameters:
  *       - in: path
@@ -228,7 +239,7 @@ router.get('/', equipoController.obtenerEquipos);
  *               $ref: '#/components/schemas/EquipoResponse'
  *             examples:
  *               success:
- *                 summary: Equipo encontrado
+ *                 summary: Equipo encontrado con datos del usuario asignado
  *                 value:
  *                   success: true
  *                   data:
@@ -246,7 +257,9 @@ router.get('/', equipoController.obtenerEquipos);
  *                       storage: "256GB SSD"
  *                     estado_id: 1
  *                     ubicacion_id: 1
- *                     usuario_asignado_id: 123
+ *                     usuario_asignado_id: 10
+ *                     nombre_usuario_asignado: "Administrador 1"
+ *                     correo_usuario_asignado: "jssmorales51@gmail.com"
  *                     fecha_adquisicion: "2025-01-15"
  *                     fecha_garantia: "2027-01-15"
  *                     valor_compra: 1500000.00
