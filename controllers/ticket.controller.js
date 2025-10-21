@@ -1897,6 +1897,7 @@ class TicketsController {
       });
     }
   }
+  
   /**
    * Asocia un equipo a un ticket y registra el cambio en historial_equipos
    * RF-08: Relación de Equipos con Tickets e Historial de Incidencias

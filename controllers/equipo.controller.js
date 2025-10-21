@@ -437,132 +437,230 @@ class EquipoController {
 
   /**
    * Obtiene todos los equipos
+   * (Aplica visibilidad según el rol del usuario)
    */
   async obtenerEquipos(req, res) {
     try {
+      // ✅ Verificar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      const usuario_id = req.user.id;
+      const usuario_rol = req.user.rol_nombre?.toLowerCase() || req.user.rol?.toLowerCase();
+
+      // Parámetros de consulta
       const { estado_id, tipo_equipo_id, usuario_asignado_id, limit = 50, offset = 0 } = req.query;
-      
-      let baseQuery = sql`
+
+      // 🔍 Base de la consulta
+      let baseQuery = `
         SELECT 
-          id, 
-          codigo_inventario,
-          nombre,
-          descripcion,
-          tipo_equipo_id,
-          marca_id,
-          modelo,
-          numero_serie,
-          especificaciones,
-          estado_id,
-          ubicacion_id,
-          usuario_asignado_id,
-          fecha_adquisicion,
-          fecha_garantia,
-          valor_compra,
-          proveedor,
-          observaciones,
-          fecha_creacion,
-          fecha_actualizacion
-        FROM public.equipos
+          e.id, 
+          e.codigo_inventario,
+          e.nombre,
+          e.descripcion,
+          e.tipo_equipo_id,
+          e.marca_id,
+          e.modelo,
+          e.numero_serie,
+          e.especificaciones,
+          e.estado_id,
+          e.ubicacion_id,
+          e.usuario_asignado_id,
+          u.nombres AS nombre_usuario_asignado,
+          u.apellidos AS apellido_usuario_asignado,
+          u.email AS correo_usuario_asignado,
+          e.fecha_adquisicion,
+          e.fecha_garantia,
+          e.valor_compra,
+          e.proveedor,
+          e.observaciones,
+          e.fecha_creacion,
+          e.fecha_actualizacion
+        FROM public.equipos e
+        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
       `;
 
+      // 🔸 Construir condiciones según el rol
       const conditions = [];
-      if (estado_id !== undefined) {
-        conditions.push(sql`estado_id = ${parseInt(estado_id)}`);
-      }
-      if (tipo_equipo_id !== undefined) {
-        conditions.push(sql`tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
-      }
-      if (usuario_asignado_id !== undefined) {
-        conditions.push(sql`usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
+
+      switch (usuario_rol) {
+        case 'usuario_final':
+        case 'usuario':
+          // Usuario final: solo equipos asignados a él
+          conditions.push(`e.usuario_asignado_id = ${usuario_id}`);
+          break;
+
+        case 'tecnico':
+        case 'técnico':
+        case 'tecnico_soporte':
+        case 'administrador':
+        case 'admin':
+          // Técnico y admin: pueden ver todos
+          break;
+
+        default:
+          return res.status(403).json({
+            success: false,
+            message: 'Rol de usuario no autorizado para consultar equipos',
+            error: 'ROL_NO_AUTORIZADO'
+          });
       }
 
+      // 🔸 Filtros adicionales opcionales
+      if (estado_id) conditions.push(`e.estado_id = ${parseInt(estado_id)}`);
+      if (tipo_equipo_id) conditions.push(`e.tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
+      if (usuario_asignado_id) conditions.push(`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
+
+      // 🔹 Agregar cláusula WHERE si existen condiciones
       if (conditions.length > 0) {
-        baseQuery = sql`
-          ${baseQuery}
-          WHERE ${sql.join(conditions, sql` AND `)}
-        `;
+        baseQuery += ' WHERE ' + conditions.join(' AND ');
       }
 
-      const finalQuery = sql`
-        ${baseQuery}
-        ORDER BY codigo_inventario ASC 
-        LIMIT ${parseInt(limit)} 
-        OFFSET ${parseInt(offset)}
+      // 🔹 Consulta final con orden y paginación
+      baseQuery += `
+        ORDER BY e.codigo_inventario ASC
+        LIMIT ${parseInt(limit)}
+        OFFSET ${parseInt(offset)};
       `;
 
-      const equipos = await finalQuery;
+      // Ejecutar consulta
+      const equipos = await sql.unsafe(baseQuery);
 
+      // ✅ Formatear salida
+      const equiposFormateados = equipos.map(eq => ({
+        ...eq,
+        nombre_usuario_asignado: eq.nombre_usuario_asignado
+          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
+          : null
+      }));
+
+      // 🔹 Respuesta final
       res.status(200).json({
         success: true,
-        data: equipos
+        message: 'Equipos obtenidos exitosamente',
+        data: equiposFormateados,
+        filtros_aplicados: {
+          rol: usuario_rol,
+          estado_id: estado_id || null,
+          tipo_equipo_id: tipo_equipo_id || null,
+          usuario_asignado_id: usuario_asignado_id || null
+        }
       });
 
     } catch (error) {
-      console.error('Error al obtener equipos:', error);
+      console.error('❌ Error al obtener equipos:', {
+        message: error.message,
+        stack: error.stack
+      });
+
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
       });
     }
   }
 
   /**
    * Obtiene un equipo por ID
+   * (Restringido según rol del usuario)
    */
   async obtenerEquipoPorId(req, res) {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      const usuario_id = req.user.id;
+      const usuario_rol = req.user.rol_nombre?.toLowerCase() || req.user.rol?.toLowerCase();
       const { id } = req.params;
 
       if (!id || isNaN(parseInt(id))) {
         return res.status(400).json({
           success: false,
-          message: 'ID de equipo inválido'
+          message: 'ID de equipo inválido',
+          error: 'EQUIPO_ID_INVALIDO'
         });
       }
 
       const equipos = await sql`
         SELECT 
-          id, 
-          codigo_inventario,
-          nombre,
-          descripcion,
-          tipo_equipo_id,
-          marca_id,
-          modelo,
-          numero_serie,
-          especificaciones,
-          estado_id,
-          ubicacion_id,
-          usuario_asignado_id,
-          fecha_adquisicion,
-          fecha_garantia,
-          valor_compra,
-          proveedor,
-          observaciones,
-          fecha_creacion,
-          fecha_actualizacion
-        FROM public.equipos 
-        WHERE id = ${parseInt(id)}
+          e.id, 
+          e.codigo_inventario,
+          e.nombre,
+          e.descripcion,
+          e.tipo_equipo_id,
+          e.marca_id,
+          e.modelo,
+          e.numero_serie,
+          e.especificaciones,
+          e.estado_id,
+          e.ubicacion_id,
+          e.usuario_asignado_id,
+          u.nombres AS nombre_usuario_asignado,
+          u.apellidos AS apellido_usuario_asignado,
+          u.email AS correo_usuario_asignado,
+          e.fecha_adquisicion,
+          e.fecha_garantia,
+          e.valor_compra,
+          e.proveedor,
+          e.observaciones,
+          e.fecha_creacion,
+          e.fecha_actualizacion
+        FROM public.equipos e
+        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
+        WHERE e.id = ${parseInt(id)}
       `;
 
       if (equipos.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Equipo no encontrado'
+          message: 'Equipo no encontrado',
+          error: 'EQUIPO_NO_ENCONTRADO'
         });
       }
 
+      const eq = equipos[0];
+
+      // 🔒 Control de acceso según rol
+      if (['usuario_final', 'usuario'].includes(usuario_rol)) {
+        if (eq.usuario_asignado_id !== usuario_id) {
+          return res.status(403).json({
+            success: false,
+            message: 'No tienes permiso para ver este equipo',
+            error: 'ACCESO_DENEGADO'
+          });
+        }
+      }
+
+      const equipoFormateado = {
+        ...eq,
+        nombre_usuario_asignado: eq.nombre_usuario_asignado
+          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
+          : null
+      };
+
       res.status(200).json({
         success: true,
-        data: equipos[0]
+        message: 'Equipo obtenido exitosamente',
+        data: equipoFormateado
       });
 
     } catch (error) {
-      console.error('Error al obtener equipo:', error);
+      console.error('❌ Error al obtener equipo por ID:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
       });
     }
   }

@@ -125,90 +125,153 @@ const equipoController = new EquipoController();
  * @swagger
  * /api/equipo:
  *   get:
- *     summary: Obtiene todos los equipos
- *     description: Recupera una lista de todos los equipos del inventario con filtros opcionales
+ *     summary: Obtiene todos los equipos del inventario (según el rol del usuario autenticado)
+ *     description: |
+ *       Devuelve la lista de equipos registrada en el sistema, con visibilidad filtrada por rol:
+ *       
+ *       - **Administrador:** puede ver **todos los equipos**.  
+ *       - **Técnico:** puede ver **todos los equipos** (por labores de soporte).  
+ *       - **Usuario Final:** solo puede ver **los equipos que tiene asignados**.
+ *       
+ *       Además, incluye la información del **usuario asignado** (nombre completo y correo electrónico),
+ *       así como filtros opcionales por estado, tipo o usuario.
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Equipo]
  *     parameters:
  *       - in: query
  *         name: estado_id
  *         schema:
  *           type: integer
- *           minimum: 1
  *         description: Filtrar por ID del estado del equipo
  *         example: 1
  *       - in: query
  *         name: tipo_equipo_id
  *         schema:
  *           type: integer
- *           minimum: 1
  *         description: Filtrar por ID del tipo de equipo
- *         example: 1
+ *         example: 2
  *       - in: query
  *         name: usuario_asignado_id
  *         schema:
  *           type: integer
- *           minimum: 1
  *         description: Filtrar por ID del usuario asignado
- *         example: 123
+ *         example: 10
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *           minimum: 1
- *           maximum: 100
  *           default: 50
  *         description: Número máximo de registros a devolver
- *         example: 10
  *       - in: query
  *         name: offset
  *         schema:
  *           type: integer
- *           minimum: 0
  *           default: 0
- *         description: Número de registros a omitir
- *         example: 0
+ *         description: Número de registros a omitir (para paginación)
  *     responses:
  *       200:
- *         description: Lista de equipos obtenida exitosamente
+ *         description: Lista de equipos obtenida exitosamente (según permisos del rol)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/EquipoResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Equipos obtenidos exitosamente"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Equipo'
+ *                 filtros_aplicados:
+ *                   type: object
+ *                   properties:
+ *                     rol:
+ *                       type: string
+ *                       example: "usuario_final"
+ *                     estado_id:
+ *                       type: integer
+ *                       nullable: true
+ *                     tipo_equipo_id:
+ *                       type: integer
+ *                       nullable: true
  *             examples:
- *               success:
- *                 summary: Respuesta exitosa
+ *               administrador:
+ *                 summary: Vista del administrador (todos los equipos)
  *                 value:
  *                   success: true
+ *                   message: "Equipos obtenidos exitosamente"
  *                   data:
  *                     - id: 1
  *                       codigo_inventario: "EQ-001-2025"
  *                       nombre: "Computador HP EliteDesk"
- *                       descripcion: "Computador de escritorio para tareas administrativas"
- *                       tipo_equipo_id: 1
- *                       marca_id: 1
- *                       modelo: "EliteDesk 800 G6"
- *                       numero_serie: "HP123456789"
+ *                       usuario_asignado_id: 10
+ *                       nombre_usuario_asignado: "Juan Pérez"
+ *                       correo_usuario_asignado: "juan.perez@epa.gov.co"
  *                       estado_id: 1
- *                       ubicacion_id: 1
- *                       usuario_asignado_id: 123
- *                       fecha_adquisicion: "2025-01-15"
- *                       valor_compra: 1500000.00
- *                       proveedor: "TechSolutions S.A.S"
+ *                       fecha_creacion: "2025-01-15T10:30:00.000Z"
+ *                   filtros_aplicados:
+ *                     rol: "administrador"
+ *               usuario_final:
+ *                 summary: Vista del usuario final (solo sus equipos)
+ *                 value:
+ *                   success: true
+ *                   message: "Equipos obtenidos exitosamente"
+ *                   data:
+ *                     - id: 4
+ *                       codigo_inventario: "EQ-024-2025"
+ *                       nombre: "Portátil Dell Latitude"
+ *                       usuario_asignado_id: 25
+ *                       nombre_usuario_asignado: "Carlos Gómez"
+ *                       correo_usuario_asignado: "carlos.gomez@epa.gov.co"
+ *                       estado_id: 2
+ *                       fecha_creacion: "2025-03-02T09:10:00.000Z"
+ *                   filtros_aplicados:
+ *                     rol: "usuario_final"
+ *       401:
+ *         description: Usuario no autenticado (token ausente o inválido)
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Usuario no autenticado"
+ *               error: "NO_AUTENTICADO"
+ *       403:
+ *         description: Rol no autorizado para consultar equipos
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "Rol de usuario no autorizado para consultar equipos"
+ *               error: "ROL_NO_AUTORIZADO"
  *       500:
  *         description: Error interno del servidor
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ *               error: "INTERNAL_SERVER_ERROR"
  */
-router.get('/', equipoController.obtenerEquipos);
+router.get('/', verifyToken, equipoController.obtenerEquipos);
 
 /**
  * @swagger
  * /api/equipo/{id}:
  *   get:
- *     summary: Obtiene un equipo por ID
- *     description: Recupera los detalles de un equipo específico mediante su ID
+ *     summary: Obtiene un equipo específico por su ID (según permisos del usuario)
+ *     description: |
+ *       Retorna los detalles de un equipo determinado por su ID.  
+ *       Incluye información del **usuario asignado** (nombre completo y correo).  
+ *       
+ *       - **Administrador / Técnico:** pueden consultar cualquier equipo.  
+ *       - **Usuario Final:** solo puede consultar equipos **asignados a él mismo**.
+ *     security:
+ *       - bearerAuth: []
  *     tags: [Equipo]
  *     parameters:
  *       - in: path
@@ -216,7 +279,6 @@ router.get('/', equipoController.obtenerEquipos);
  *         required: true
  *         schema:
  *           type: integer
- *           minimum: 1
  *         description: ID único del equipo
  *         example: 1
  *     responses:
@@ -225,67 +287,77 @@ router.get('/', equipoController.obtenerEquipos);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/EquipoResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Equipo obtenido exitosamente"
+ *                 data:
+ *                   $ref: '#/components/schemas/Equipo'
  *             examples:
- *               success:
- *                 summary: Equipo encontrado
+ *               admin_o_tecnico:
+ *                 summary: Admin o técnico consultando cualquier equipo
  *                 value:
  *                   success: true
  *                   data:
  *                     id: 1
  *                     codigo_inventario: "EQ-001-2025"
  *                     nombre: "Computador HP EliteDesk"
- *                     descripcion: "Computador de escritorio para tareas administrativas"
- *                     tipo_equipo_id: 1
- *                     marca_id: 1
- *                     modelo: "EliteDesk 800 G6"
- *                     numero_serie: "HP123456789"
- *                     especificaciones:
- *                       cpu: "Intel i5"
- *                       ram: "8GB"
- *                       storage: "256GB SSD"
+ *                     usuario_asignado_id: 10
+ *                     nombre_usuario_asignado: "Juan Pérez"
+ *                     correo_usuario_asignado: "juan.perez@epa.gov.co"
  *                     estado_id: 1
- *                     ubicacion_id: 1
- *                     usuario_asignado_id: 123
- *                     fecha_adquisicion: "2025-01-15"
- *                     fecha_garantia: "2027-01-15"
- *                     valor_compra: 1500000.00
- *                     proveedor: "TechSolutions S.A.S"
- *                     observaciones: "Equipo en excelente estado"
  *                     fecha_creacion: "2025-01-15T10:30:00.000Z"
- *                     fecha_actualizacion: "2025-01-15T10:30:00.000Z"
- *       400:
- *         description: ID de equipo inválido
+ *               usuario_final:
+ *                 summary: Usuario final consultando su propio equipo asignado
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     id: 4
+ *                     codigo_inventario: "EQ-024-2025"
+ *                     nombre: "Portátil Dell Latitude"
+ *                     usuario_asignado_id: 25
+ *                     nombre_usuario_asignado: "Carlos Gómez"
+ *                     correo_usuario_asignado: "carlos.gomez@epa.gov.co"
+ *                     estado_id: 2
+ *                     fecha_creacion: "2025-03-02T09:10:00.000Z"
+ *       401:
+ *         description: Usuario no autenticado
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             examples:
- *               invalid_id:
- *                 summary: ID inválido
- *                 value:
- *                   success: false
- *                   message: "ID de equipo inválido"
+ *             example:
+ *               success: false
+ *               message: "Usuario no autenticado"
+ *               error: "NO_AUTENTICADO"
+ *       403:
+ *         description: Usuario sin permisos para ver este equipo
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: false
+ *               message: "No tienes permiso para ver este equipo"
+ *               error: "ACCESO_DENEGADO"
  *       404:
  *         description: Equipo no encontrado
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             examples:
- *               not_found:
- *                 summary: Equipo no encontrado
- *                 value:
- *                   success: false
- *                   message: "Equipo no encontrado"
+ *             example:
+ *               success: false
+ *               message: "Equipo no encontrado"
+ *               error: "EQUIPO_NO_ENCONTRADO"
  *       500:
  *         description: Error interno del servidor
  *         content:
  *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Error interno del servidor"
+ *               error: "INTERNAL_SERVER_ERROR"
  */
-router.get('/:id', equipoController.obtenerEquipoPorId);
+router.get('/:id', verifyToken, equipoController.obtenerEquipoPorId);
 
 /**
  * @swagger
