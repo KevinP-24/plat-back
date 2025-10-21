@@ -1,4 +1,5 @@
 import sql from '../config/db.js'
+import { registrarHistorialEquipo } from '../utils/historialEquipo.js';
 
 /**
  * Controlador para el manejo de equipos - CRUD Esencial
@@ -183,6 +184,12 @@ class EquipoController {
       `;
 
       const equipo = nuevoEquipo[0];
+      // Registrar historial de creación del equipo
+      await registrarHistorialEquipo({
+        equipo_id: equipo.id,
+        tipo_cambio: 'Creación de equipo',
+        usuario_responsable_id: req.user.id
+      });
 
       // 5️⃣ Log de auditoría
       console.log('✅ Equipo creado exitosamente:', {
@@ -395,6 +402,13 @@ class EquipoController {
           fecha_creacion, fecha_actualizacion
       `;
 
+      // Registrar historial de actualización del equipo
+      await registrarHistorialEquipo({
+        equipo_id: parseInt(id),
+        tipo_cambio: 'Actualización de datos del equipo',
+        usuario_responsable_id: req.user.id
+      });
+
       // 9️⃣ Auditoría (log interno)
       console.log('🛠️ Equipo actualizado correctamente:', {
         equipo_id: id,
@@ -436,13 +450,22 @@ class EquipoController {
   }
 
   /**
-   * Obtiene todos los equipos
-   * (Ahora incluye el nombre y correo del usuario asignado)
+   * Obtiene todos los equipos (según rol del usuario)
    */
   async obtenerEquipos(req, res) {
     try {
       const { estado_id, tipo_equipo_id, usuario_asignado_id, limit = 50, offset = 0 } = req.query;
-      
+
+      // 1️⃣ Verificar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
+        });
+      }
+
+      // 2️⃣ Base de consulta con JOIN para incluir nombre del usuario asignado
       let baseQuery = sql`
         SELECT 
           e.id, 
@@ -472,6 +495,8 @@ class EquipoController {
       `;
 
       const conditions = [];
+
+      // 3️⃣ Filtros opcionales
       if (estado_id !== undefined) {
         conditions.push(sql`e.estado_id = ${parseInt(estado_id)}`);
       }
@@ -482,6 +507,15 @@ class EquipoController {
         conditions.push(sql`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
       }
 
+      // 4️⃣ Restricción por rol
+      const rol = req.user.rol_nombre?.toLowerCase();
+      if (rol === 'usuario' || rol === 'user') {
+        // solo equipos asignados al usuario actual
+        conditions.push(sql`e.usuario_asignado_id = ${req.user.id}`);
+      }
+      // técnicos y administradores pueden ver todo (sin filtro adicional)
+
+      // 5️⃣ Aplicar condiciones
       if (conditions.length > 0) {
         baseQuery = sql`
           ${baseQuery}
@@ -489,6 +523,7 @@ class EquipoController {
         `;
       }
 
+      // 6️⃣ Ordenar y limitar
       const finalQuery = sql`
         ${baseQuery}
         ORDER BY e.codigo_inventario ASC 
@@ -498,8 +533,8 @@ class EquipoController {
 
       const equipos = await finalQuery;
 
-      // ✅ Unificamos nombre completo del usuario antes de enviar
-      const equiposFormateados = equipos.map(eq => ({
+      // 7️⃣ Formatear nombres completos
+      const resultado = equipos.map(eq => ({
         ...eq,
         nombre_usuario_asignado: eq.nombre_usuario_asignado
           ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
@@ -508,11 +543,11 @@ class EquipoController {
 
       res.status(200).json({
         success: true,
-        data: equiposFormateados
+        data: resultado
       });
 
     } catch (error) {
-      console.error('Error al obtener equipos:', error);
+      console.error('❌ Error al obtener equipos:', error);
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor'
@@ -677,7 +712,7 @@ class EquipoController {
         RETURNING id, nombre, usuario_asignado_id, estado_id, ubicacion_id, fecha_actualizacion
       `;
 
-      // 7️⃣ Registrar en historial_equipos
+      // 7️⃣ Registrar automáticamente el cambio en historial_equipos
       await sql`
         INSERT INTO public.historial_equipos (
           equipo_id,
@@ -701,7 +736,7 @@ class EquipoController {
           ${parseInt(usuario_nuevo_id)},
           ${equipo.ubicacion_id || null},
           ${equipoActualizado[0].ubicacion_id || null},
-          ${observaciones || 'Asignación de equipo a usuario'},
+          ${sql`CONCAT('Equipo asignado automáticamente al usuario con ID ', ${usuario_nuevo_id}, ' por el usuario responsable con ID ', ${req.user.id})`},
           ${req.user.id},
           NOW()
         )
