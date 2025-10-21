@@ -13,12 +13,13 @@ const historialController = new HistorialEquipoController();
  *     summary: Obtener historial del equipo
  *     description: |
  *       Devuelve todos los eventos registrados en el historial del equipo, incluyendo:
+ *       - Cambios de estado
  *       - Asignaciones de usuario
- *       - Asociación con tickets
- *       - Resoluciones o cierres de tickets
- *       - Mantenimientos o actualizaciones
+ *       - Cambios de ubicación
+ *       - Observaciones o mantenimientos registrados
  *       
- *       **Solo accesible para usuarios autenticados.**
+ *       Incluye los **nombres y correos asociados a cada ID** (usuarios, estados y ubicaciones).  
+ *       Solo accesible para usuarios autenticados.
  *     tags: [Historial de Equipo]
  *     security:
  *       - bearerAuth: []
@@ -34,8 +35,8 @@ const historialController = new HistorialEquipoController();
  *         name: tipo_cambio
  *         schema:
  *           type: string
- *         description: Filtrar por tipo de cambio (por ejemplo, "Resolución de ticket")
- *         example: "Resolución de ticket"
+ *         description: Filtrar por tipo de cambio (por ejemplo, "Asignación de usuario" o "Mantenimiento")
+ *         example: "Cambio de usuario"
  *       - in: query
  *         name: fecha_desde
  *         schema:
@@ -66,7 +67,7 @@ const historialController = new HistorialEquipoController();
  *         example: 0
  *     responses:
  *       200:
- *         description: Historial obtenido exitosamente
+ *         description: Historial del equipo obtenido exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -86,31 +87,63 @@ const historialController = new HistorialEquipoController();
  *                       equipo_id:
  *                         type: integer
  *                         example: 5
+ *                       tipo_cambio:
+ *                         type: string
+ *                         example: "Cambio de usuario"
+ *                       estado_anterior_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "En Reparación"
+ *                       estado_nuevo_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Operativo"
+ *                       usuario_anterior_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Carlos Gómez"
+ *                       usuario_anterior_email:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "carlos.gomez@epa.gov.co"
+ *                       usuario_nuevo_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Juan Pérez"
+ *                       usuario_nuevo_email:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "juan.perez@epa.gov.co"
+ *                       ubicacion_anterior_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Oficina 202"
+ *                       ubicacion_nueva_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Oficina 305"
+ *                       observaciones:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Equipo trasladado por solicitud del usuario"
+ *                       usuario_responsable_nombre:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "Administrador TIC"
+ *                       usuario_responsable_email:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "admin@epa.gov.co"
  *                       fecha_cambio:
  *                         type: string
  *                         format: date-time
- *                         example: "2025-09-12T15:45:00Z"
- *                       tipo_cambio:
- *                         type: string
- *                         example: "Resolución de ticket"
- *                       descripcion:
- *                         type: string
- *                         example: "Ticket TICK-20251001-0005 resuelto"
- *                       accion_realizada:
- *                         type: string
- *                         example: "Reemplazo del cable de red"
- *                       usuario_responsable:
- *                         type: string
- *                         example: "María Gómez"
- *                       ticket_id:
- *                         type: integer
- *                         example: 27
+ *                         example: "2025-10-20T16:35:00Z"
  *                 pagination:
  *                   type: object
  *                   properties:
  *                     total_items:
  *                       type: integer
- *                       example: 15
+ *                       example: 25
  *                     items_returned:
  *                       type: integer
  *                       example: 10
@@ -129,7 +162,7 @@ const historialController = new HistorialEquipoController();
  *                     tipo_cambio:
  *                       type: string
  *                       nullable: true
- *                       example: "Resolución de ticket"
+ *                       example: "Cambio de usuario"
  *                     fecha_desde:
  *                       type: string
  *                       nullable: true
@@ -139,7 +172,7 @@ const historialController = new HistorialEquipoController();
  *                       nullable: true
  *                       example: null
  *       400:
- *         description: ID inválido
+ *         description: ID de equipo inválido
  *       404:
  *         description: No se encontró historial para este equipo
  *       500:

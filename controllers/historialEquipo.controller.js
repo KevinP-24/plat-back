@@ -36,16 +36,43 @@ class HistorialEquipoController {
           he.id,
           he.equipo_id,
           he.tipo_cambio,
+
+          -- Estados
           he.estado_anterior_id,
+          ea.nombre AS estado_anterior_nombre,
           he.estado_nuevo_id,
+          en.nombre AS estado_nuevo_nombre,
+
+          -- Usuarios
           he.usuario_anterior_id,
+          ua.nombres || ' ' || ua.apellidos AS usuario_anterior_nombre,
+          ua.email AS usuario_anterior_email,
+          
           he.usuario_nuevo_id,
+          un.nombres || ' ' || un.apellidos AS usuario_nuevo_nombre,
+          un.email AS usuario_nuevo_email,
+          
+          -- Ubicaciones
           he.ubicacion_anterior_id,
+          uba.nombre AS ubicacion_anterior_nombre,
           he.ubicacion_nueva_id,
+          ubn.nombre AS ubicacion_nueva_nombre,
+
+          -- Observaciones y responsable
           he.observaciones,
           he.usuario_responsable_id,
+          ur.nombres || ' ' || ur.apellidos AS usuario_responsable_nombre,
+          ur.email AS usuario_responsable_email,
           he.fecha_cambio
+
         FROM public.historial_equipos he
+        LEFT JOIN public.estados_ticket ea ON he.estado_anterior_id = ea.id
+        LEFT JOIN public.estados_ticket en ON he.estado_nuevo_id = en.id
+        LEFT JOIN public.usuarios ua ON he.usuario_anterior_id = ua.id
+        LEFT JOIN public.usuarios un ON he.usuario_nuevo_id = un.id
+        LEFT JOIN public.usuarios ur ON he.usuario_responsable_id = ur.id
+        LEFT JOIN public.ubicaciones uba ON he.ubicacion_anterior_id = uba.id
+        LEFT JOIN public.ubicaciones ubn ON he.ubicacion_nueva_id = ubn.id
         WHERE he.equipo_id = ${parseInt(id)}
       `;
 
