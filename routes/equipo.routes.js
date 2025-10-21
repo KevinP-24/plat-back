@@ -844,10 +844,6 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *               message: "Error interno del servidor"
  *               error: "INTERNAL_SERVER_ERROR"
  */
-router.put(
-  '/:id/asignar-usuario',
-  verifyToken,
-  equipoController.asignarEquipoAUsuario.bind(equipoController)
-);
+router.put('/:id/asignar-usuario',verifyToken,equipoController.asignarEquipoAUsuario.bind(equipoController));
 
 export default router;
