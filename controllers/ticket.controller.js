@@ -1,5 +1,4 @@
 import sql from '../config/db.js'
-import { registrarHistorialEquipo } from '../utils/historialEquipo.js';
 
 /**
  * Controlador para el manejo de tickets - CRUD Esencial

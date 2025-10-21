@@ -1,5 +1,4 @@
 import sql from '../config/db.js'
-import { registrarHistorialEquipo } from '../utils/historialEquipo.js';
 
 /**
  * Controlador para el manejo de equipos - CRUD Esencial
@@ -184,12 +183,6 @@ class EquipoController {
       `;
 
       const equipo = nuevoEquipo[0];
-      // Registrar historial de creación del equipo
-      await registrarHistorialEquipo({
-        equipo_id: equipo.id,
-        tipo_cambio: 'Creación de equipo',
-        usuario_responsable_id: req.user.id
-      });
 
       // 5️⃣ Log de auditoría
       console.log('✅ Equipo creado exitosamente:', {
@@ -402,13 +395,6 @@ class EquipoController {
           fecha_creacion, fecha_actualizacion
       `;
 
-      // Registrar historial de actualización del equipo
-      await registrarHistorialEquipo({
-        equipo_id: parseInt(id),
-        tipo_cambio: 'Actualización de datos del equipo',
-        usuario_responsable_id: req.user.id
-      });
-
       // 9️⃣ Auditoría (log interno)
       console.log('🛠️ Equipo actualizado correctamente:', {
         equipo_id: id,
@@ -451,12 +437,12 @@ class EquipoController {
 
   /**
    * Obtiene todos los equipos
-   * (Pública: no requiere autenticación)
+   * (Ahora incluye el nombre y correo del usuario asignado)
    */
   async obtenerEquipos(req, res) {
     try {
       const { estado_id, tipo_equipo_id, usuario_asignado_id, limit = 50, offset = 0 } = req.query;
-
+      
       let baseQuery = sql`
         SELECT 
           e.id, 
@@ -512,7 +498,8 @@ class EquipoController {
 
       const equipos = await finalQuery;
 
-      const resultado = equipos.map(eq => ({
+      // ✅ Unificamos nombre completo del usuario antes de enviar
+      const equiposFormateados = equipos.map(eq => ({
         ...eq,
         nombre_usuario_asignado: eq.nombre_usuario_asignado
           ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
@@ -521,22 +508,21 @@ class EquipoController {
 
       res.status(200).json({
         success: true,
-        data: resultado
+        data: equiposFormateados
       });
+
     } catch (error) {
-      console.error('❌ Error al obtener equipos:', error);
+      console.error('Error al obtener equipos:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor',
-        error: 'INTERNAL_SERVER_ERROR'
+        message: 'Error interno del servidor'
       });
     }
   }
 
-
   /**
-   * Obtiene un equipo por su ID
-   * (Pública: no requiere autenticación)
+   * Obtiene un equipo por ID
+   * (Ahora incluye el nombre y correo del usuario asignado)
    */
   async obtenerEquipoPorId(req, res) {
     try {
@@ -545,31 +531,27 @@ class EquipoController {
       if (!id || isNaN(parseInt(id))) {
         return res.status(400).json({
           success: false,
-          message: 'ID de equipo inválido',
-          error: 'EQUIPO_ID_INVALIDO'
+          message: 'ID de equipo inválido'
         });
       }
 
-      const equipoQuery = await sql`
+      const equipos = await sql`
         SELECT 
-          e.id,
+          e.id, 
           e.codigo_inventario,
           e.nombre,
           e.descripcion,
           e.tipo_equipo_id,
-          te.nombre AS tipo_equipo,
           e.marca_id,
-          m.nombre AS marca,
           e.modelo,
           e.numero_serie,
           e.especificaciones,
           e.estado_id,
-          est.nombre AS estado,
           e.ubicacion_id,
-          u.nombre AS ubicacion,
           e.usuario_asignado_id,
-          us.nombres || ' ' || us.apellidos AS usuario_asignado,
-          us.email AS correo_usuario_asignado,
+          u.nombres AS nombre_usuario_asignado,
+          u.apellidos AS apellido_usuario_asignado,
+          u.email AS correo_usuario_asignado,
           e.fecha_adquisicion,
           e.fecha_garantia,
           e.valor_compra,
@@ -578,65 +560,35 @@ class EquipoController {
           e.fecha_creacion,
           e.fecha_actualizacion
         FROM public.equipos e
-        LEFT JOIN public.tipos_equipo te ON e.tipo_equipo_id = te.id
-        LEFT JOIN public.marcas m ON e.marca_id = m.id
-        LEFT JOIN public.estados est ON e.estado_id = est.id
-        LEFT JOIN public.ubicaciones u ON e.ubicacion_id = u.id
-        LEFT JOIN public.usuarios us ON e.usuario_asignado_id = us.id
+        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
         WHERE e.id = ${parseInt(id)}
       `;
 
-      if (equipoQuery.length === 0) {
+      if (equipos.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Equipo no encontrado',
-          error: 'EQUIPO_NO_ENCONTRADO'
+          message: 'Equipo no encontrado'
         });
       }
 
-      const equipo = equipoQuery[0];
-
-      let historial = [];
-      try {
-        historial = await sql`
-          SELECT 
-            h.tipo_cambio,
-            h.observaciones,
-            h.fecha_cambio,
-            ur.nombres || ' ' || ur.apellidos AS usuario_responsable,
-            ur.email AS correo_responsable
-          FROM public.historial_equipos h
-          LEFT JOIN public.usuarios ur ON h.usuario_responsable_id = ur.id
-          WHERE h.equipo_id = ${parseInt(id)}
-          ORDER BY h.fecha_cambio DESC
-        `;
-      } catch {
-        console.log('ℹ️ Tabla historial_equipos no encontrada, sin historial.');
-      }
-
+      const eq = equipos[0];
       const equipoFormateado = {
-        ...equipo,
-        usuario_asignado: equipo.usuario_asignado || null,
-        correo_usuario_asignado: equipo.correo_usuario_asignado || null,
-        historial: historial.map(h => ({
-          ...h,
-          fecha_formateada: new Date(h.fecha_cambio).toLocaleString('es-CO', {
-            timeZone: 'America/Bogota'
-          })
-        }))
+        ...eq,
+        nombre_usuario_asignado: eq.nombre_usuario_asignado
+          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
+          : null
       };
 
       res.status(200).json({
         success: true,
-        message: 'Equipo obtenido exitosamente',
         data: equipoFormateado
       });
+
     } catch (error) {
-      console.error('❌ Error al obtener equipo:', error);
+      console.error('Error al obtener equipo:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor',
-        error: 'INTERNAL_SERVER_ERROR'
+        message: 'Error interno del servidor'
       });
     }
   }
@@ -725,7 +677,7 @@ class EquipoController {
         RETURNING id, nombre, usuario_asignado_id, estado_id, ubicacion_id, fecha_actualizacion
       `;
 
-      // 7️⃣ Registrar automáticamente el cambio en historial_equipos
+      // 7️⃣ Registrar en historial_equipos
       await sql`
         INSERT INTO public.historial_equipos (
           equipo_id,
@@ -749,7 +701,7 @@ class EquipoController {
           ${parseInt(usuario_nuevo_id)},
           ${equipo.ubicacion_id || null},
           ${equipoActualizado[0].ubicacion_id || null},
-          ${sql`CONCAT('Equipo asignado automáticamente al usuario con ID ', ${usuario_nuevo_id}, ' por el usuario responsable con ID ', ${req.user.id})`},
+          ${observaciones || 'Asignación de equipo a usuario'},
           ${req.user.id},
           NOW()
         )

@@ -1869,30 +1869,22 @@ router.put('/:id', verifyToken, ticketsController.actualizarTicket);
  * @swagger
  * /api/tickets/{id}/asignar-equipo:
  *   post:
+ *     tags:
+ *       - Tickets
  *     summary: Asocia un equipo del inventario a un ticket de soporte
  *     description: |
- *       Permite asociar un **equipo existente del inventario** a un ticket de soporte activo.  
+ *       Permite asociar un equipo existente del inventario a un ticket de soporte activo.
+ *       Esta acción también genera un registro en la tabla **historial_equipos**,  
+ *       conservando la trazabilidad de las incidencias que involucren ese equipo.
  *       
- *       Esta operación **no reemplaza asociaciones previas**: cada vinculación genera un nuevo registro en el historial.  
+ *       **Requisitos y control de acceso:**
+ *       - Solo **Administrador** o **Técnico** pueden ejecutar esta acción.
+ *       - El ticket y el equipo deben existir y estar activos.
+ *       - No reemplaza registros anteriores en el historial: cada asociación genera una nueva entrada.
  *       
- *       **Control de acceso:**  
- *       - 👨‍💼 **Administrador / Técnico:** pueden asociar equipos a cualquier ticket.  
- *       - 👤 **Usuario Final:** no tiene permisos para realizar esta acción.  
- *       
- *       **Acciones automáticas:**  
- *       - Se registra una entrada en la tabla **historial_equipos** con:
- *         - `tipo_cambio = "Asociación con ticket"`
- *         - Usuario responsable (`req.user.id`)
- *         - Fecha y hora exacta de la operación  
- *       - Se actualiza el campo `equipo_afectado_id` en la tabla **tickets**.  
- *       
- *       **Trazabilidad garantizada:**  
- *       Cada vez que un ticket se relaciona con un equipo, se conserva un registro histórico que detalla:
- *       - El usuario responsable de la acción  
- *       - El equipo afectado  
- *       - La descripción o acción realizada  
- *       - El timestamp exacto
- *     tags: [Tickets]
+ *       **Acciones automáticas:**
+ *       - Inserta un nuevo registro en `historial_equipos` con tipo_cambio = "Asociación con ticket".
+ *       - Guarda el usuario responsable (quien ejecutó la acción) y la fecha exacta.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -1903,7 +1895,7 @@ router.put('/:id', verifyToken, ticketsController.actualizarTicket);
  *         schema:
  *           type: integer
  *           minimum: 1
- *         example: 13
+ *         example: 22
  *     requestBody:
  *       required: true
  *       description: Datos necesarios para asociar el equipo al ticket
@@ -1916,17 +1908,17 @@ router.put('/:id', verifyToken, ticketsController.actualizarTicket);
  *             properties:
  *               equipo_id:
  *                 type: integer
- *                 description: ID del equipo que se va a asociar al ticket
+ *                 description: ID del equipo a asociar
  *                 example: 9
  *               descripcion:
  *                 type: string
- *                 description: Breve descripción o motivo de la asociación
+ *                 description: Detalle o motivo de la asociación
  *                 example: "El equipo presenta fallas intermitentes en la red"
  *               accion_realizada:
  *                 type: string
  *                 nullable: true
- *                 description: Acción ejecutada durante la atención del ticket
- *                 example: "Reinicio del adaptador de red y actualización de drivers"
+ *                 description: Acción tomada durante la atención del ticket
+ *                 example: "Reinicio de adaptador de red y actualización de drivers"
  *     responses:
  *       200:
  *         description: Equipo asociado correctamente al ticket
@@ -1946,54 +1938,31 @@ router.put('/:id', verifyToken, ticketsController.actualizarTicket);
  *                   properties:
  *                     ticket_id:
  *                       type: integer
- *                       description: ID del ticket afectado
- *                       example: 13
- *                     numero_ticket:
- *                       type: string
- *                       description: Número de ticket en formato único
- *                       example: "TICK-20250908-0002"
- *                     titulo:
- *                       type: string
- *                       description: Título del ticket
- *                       example: "Incidencia con aplicación/software"
+ *                       example: 22
  *                     equipo_id:
  *                       type: integer
- *                       description: ID del equipo asociado
  *                       example: 9
  *                     nombre_equipo:
  *                       type: string
- *                       description: Nombre del equipo vinculado
- *                       example: "Computador HP Prueba Cambiada"
+ *                       example: "Computador HP EliteDesk 800 G6"
  *                     descripcion:
  *                       type: string
- *                       description: Descripción o detalle de la incidencia
  *                       example: "El equipo presenta fallas intermitentes en la red"
  *                     accion_realizada:
  *                       type: string
- *                       description: Acción ejecutada durante la atención del ticket
- *                       example: "Reinicio del adaptador de red y actualización de drivers"
+ *                       example: "Reinicio de adaptador de red y actualización de drivers"
  *                     fecha_registro:
  *                       type: string
  *                       format: date-time
- *                       description: Fecha y hora de registro de la asociación
- *                       example: "2025-10-12T05:11:14.125Z"
+ *                       example: "2025-10-12T04:30:00.000Z"
  *       400:
- *         description: Solicitud inválida o datos incorrectos
+ *         description: Solicitud inválida o parámetros incorrectos
  *         content:
  *           application/json:
- *             examples:
- *               invalid_ticket_id:
- *                 summary: ID de ticket inválido
- *                 value:
- *                   success: false
- *                   message: "ID de ticket inválido"
- *                   error: "ID_INVALIDO"
- *               invalid_equipo_id:
- *                 summary: ID de equipo inválido
- *                 value:
- *                   success: false
- *                   message: "El ID del equipo es requerido y debe ser válido"
- *                   error: "EQUIPO_INVALIDO"
+ *             example:
+ *               success: false
+ *               message: "El ID del equipo es requerido y debe ser válido"
+ *               error: "EQUIPO_INVALIDO"
  *       401:
  *         description: Usuario no autenticado
  *         content:
@@ -2036,10 +2005,6 @@ router.put('/:id', verifyToken, ticketsController.actualizarTicket);
  *               message: "Error interno del servidor"
  *               error: "INTERNAL_SERVER_ERROR"
  */
-router.post(
-  '/:id/asignar-equipo',
-  verifyToken,
-  ticketsController.asignarEquipoATicket.bind(ticketsController)
-);
+router.post('/:id/asignar-equipo', verifyToken, ticketsController.asignarEquipoATicket.bind(ticketsController));
 
 export default router;
