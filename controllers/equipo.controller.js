@@ -485,25 +485,22 @@ class EquipoController {
         LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
       `;
 
-      // 🔸 Construir condiciones según rol
+      // Construir condiciones según el rol
       const conditions = [];
 
       switch (usuario_rol) {
         case 'usuario_final':
         case 'usuario':
           // Usuario final: solo equipos asignados a él
-          conditions.push(sql`e.usuario_asignado_id = ${usuario_id}`);
+          conditions.push(`e.usuario_asignado_id = ${usuario_id}`);
           break;
 
         case 'tecnico':
         case 'técnico':
         case 'tecnico_soporte':
-          // Técnico: puede ver todos
-          break;
-
         case 'administrador':
         case 'admin':
-          // Admin: puede ver todos
+          // Técnico y admin: pueden ver todos
           break;
 
         default:
@@ -515,19 +512,21 @@ class EquipoController {
       }
 
       // 🔸 Filtros adicionales opcionales
-      if (estado_id !== undefined) conditions.push(sql`e.estado_id = ${parseInt(estado_id)}`);
-      if (tipo_equipo_id !== undefined) conditions.push(sql`e.tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
-      if (usuario_asignado_id !== undefined) conditions.push(sql`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
+      if (estado_id) conditions.push(`e.estado_id = ${parseInt(estado_id)}`);
+      if (tipo_equipo_id) conditions.push(`e.tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
+      if (usuario_asignado_id) conditions.push(`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
 
-      // Aplicar condiciones
+      // 🔹 Construir cláusula WHERE de forma segura
       if (conditions.length > 0) {
-        baseQuery = sql`${baseQuery} WHERE ${sql.join(conditions, sql` AND `)}`;
+        const whereClause = 'WHERE ' + conditions.join(' AND ');
+        baseQuery = sql.unsafe(`${baseQuery.text} ${whereClause}`);
       }
 
+      // 🔹 Consulta final con orden y paginación
       const finalQuery = sql`
         ${baseQuery}
-        ORDER BY e.codigo_inventario ASC 
-        LIMIT ${parseInt(limit)} 
+        ORDER BY e.codigo_inventario ASC
+        LIMIT ${parseInt(limit)}
         OFFSET ${parseInt(offset)}
       `;
 
@@ -541,6 +540,7 @@ class EquipoController {
           : null
       }));
 
+      // 🔹 Respuesta final
       res.status(200).json({
         success: true,
         message: 'Equipos obtenidos exitosamente',
@@ -548,12 +548,17 @@ class EquipoController {
         filtros_aplicados: {
           rol: usuario_rol,
           estado_id: estado_id || null,
-          tipo_equipo_id: tipo_equipo_id || null
+          tipo_equipo_id: tipo_equipo_id || null,
+          usuario_asignado_id: usuario_asignado_id || null
         }
       });
 
     } catch (error) {
-      console.error('❌ Error al obtener equipos:', error);
+      console.error('❌ Error al obtener equipos:', {
+        message: error.message,
+        stack: error.stack
+      });
+
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
@@ -561,6 +566,7 @@ class EquipoController {
       });
     }
   }
+
 
   /**
    * Obtiene un equipo por ID
