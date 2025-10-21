@@ -457,7 +457,7 @@ class EquipoController {
       const { estado_id, tipo_equipo_id, usuario_asignado_id, limit = 50, offset = 0 } = req.query;
 
       // 🔍 Base de la consulta
-      let baseQuery = sql`
+      let baseQuery = `
         SELECT 
           e.id, 
           e.codigo_inventario,
@@ -485,7 +485,7 @@ class EquipoController {
         LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
       `;
 
-      // Construir condiciones según el rol
+      // 🔸 Construir condiciones según el rol
       const conditions = [];
 
       switch (usuario_rol) {
@@ -516,21 +516,20 @@ class EquipoController {
       if (tipo_equipo_id) conditions.push(`e.tipo_equipo_id = ${parseInt(tipo_equipo_id)}`);
       if (usuario_asignado_id) conditions.push(`e.usuario_asignado_id = ${parseInt(usuario_asignado_id)}`);
 
-      // 🔹 Construir cláusula WHERE de forma segura
+      // 🔹 Agregar cláusula WHERE si existen condiciones
       if (conditions.length > 0) {
-        const whereClause = 'WHERE ' + conditions.join(' AND ');
-        baseQuery = sql.unsafe(`${baseQuery.text} ${whereClause}`);
+        baseQuery += ' WHERE ' + conditions.join(' AND ');
       }
 
       // 🔹 Consulta final con orden y paginación
-      const finalQuery = sql`
-        ${baseQuery}
+      baseQuery += `
         ORDER BY e.codigo_inventario ASC
         LIMIT ${parseInt(limit)}
-        OFFSET ${parseInt(offset)}
+        OFFSET ${parseInt(offset)};
       `;
 
-      const equipos = await finalQuery;
+      // Ejecutar consulta
+      const equipos = await sql.unsafe(baseQuery);
 
       // ✅ Formatear salida
       const equiposFormateados = equipos.map(eq => ({
@@ -566,7 +565,6 @@ class EquipoController {
       });
     }
   }
-
 
   /**
    * Obtiene un equipo por ID
