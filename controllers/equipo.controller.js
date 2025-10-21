@@ -556,37 +556,68 @@ class EquipoController {
   }
 
   /**
-   * Obtiene un equipo por ID
-   * (Ahora incluye el nombre y correo del usuario asignado)
+   * Obtiene un equipo por ID con control de acceso por rol
+   * RF-XX: Consulta de Equipo Individual
+   * Endpoint: GET /api/equipo/:id
+   * Permisos:
+   *   - Administrador: puede ver todos los equipos
+   *   - Técnico: puede ver todos los equipos
+   *   - Usuario: solo equipos asignados a él
    */
   async obtenerEquipoPorId(req, res) {
     try {
-      const { id } = req.params;
-
-      if (!id || isNaN(parseInt(id))) {
-        return res.status(400).json({
+      // 1️⃣ Validar autenticación
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
           success: false,
-          message: 'ID de equipo inválido'
+          message: 'Usuario no autenticado',
+          error: 'NO_AUTENTICADO'
         });
       }
 
-      const equipos = await sql`
+      const usuario_id = req.user.id;
+      const usuario_rol = req.user.rol_nombre || req.user.rol;
+      const equipo_id = req.params.id;
+
+      // 2️⃣ Validar que el rol esté disponible
+      if (!usuario_rol) {
+        return res.status(401).json({
+          success: false,
+          message: 'Información de rol no disponible en el token',
+          error: 'ROL_NO_DISPONIBLE'
+        });
+      }
+
+      // 3️⃣ Validar ID
+      if (!equipo_id || isNaN(parseInt(equipo_id))) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de equipo inválido',
+          error: 'EQUIPO_ID_INVALIDO'
+        });
+      }
+
+      // 4️⃣ Consultar información completa del equipo
+      const equipoQuery = await sql`
         SELECT 
-          e.id, 
+          e.id,
           e.codigo_inventario,
           e.nombre,
           e.descripcion,
           e.tipo_equipo_id,
+          te.nombre AS tipo_equipo,
           e.marca_id,
+          m.nombre AS marca,
           e.modelo,
           e.numero_serie,
           e.especificaciones,
           e.estado_id,
+          est.nombre AS estado,
           e.ubicacion_id,
+          u.nombre AS ubicacion,
           e.usuario_asignado_id,
-          u.nombres AS nombre_usuario_asignado,
-          u.apellidos AS apellido_usuario_asignado,
-          u.email AS correo_usuario_asignado,
+          us.nombres || ' ' || us.apellidos AS usuario_asignado,
+          us.email AS correo_usuario_asignado,
           e.fecha_adquisicion,
           e.fecha_garantia,
           e.valor_compra,
@@ -595,35 +626,123 @@ class EquipoController {
           e.fecha_creacion,
           e.fecha_actualizacion
         FROM public.equipos e
-        LEFT JOIN public.usuarios u ON e.usuario_asignado_id = u.id
-        WHERE e.id = ${parseInt(id)}
+        LEFT JOIN public.tipos_equipo te ON e.tipo_equipo_id = te.id
+        LEFT JOIN public.marcas m ON e.marca_id = m.id
+        LEFT JOIN public.estados est ON e.estado_id = est.id
+        LEFT JOIN public.ubicaciones u ON e.ubicacion_id = u.id
+        LEFT JOIN public.usuarios us ON e.usuario_asignado_id = us.id
+        WHERE e.id = ${parseInt(equipo_id)}
       `;
 
-      if (equipos.length === 0) {
+      if (equipoQuery.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Equipo no encontrado'
+          message: 'Equipo no encontrado',
+          error: 'EQUIPO_NO_ENCONTRADO'
         });
       }
 
-      const eq = equipos[0];
+      const equipo = equipoQuery[0];
+
+      // 5️⃣ Validar permisos según el rol
+      let tieneAcceso = false;
+
+      switch (usuario_rol.toLowerCase()) {
+        case 'administrador':
+        case 'admin':
+        case 'tecnico':
+        case 'técnico':
+          tieneAcceso = true; // puede ver todos los equipos
+          break;
+
+        case 'usuario':
+        case 'usuario_final':
+          // solo puede ver equipos asignados a él
+          tieneAcceso = equipo.usuario_asignado_id === usuario_id;
+          break;
+
+        default:
+          tieneAcceso = false;
+      }
+
+      if (!tieneAcceso) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para ver este equipo',
+          error: 'ACCESO_DENEGADO'
+        });
+      }
+
+      // 6️⃣ Consultar historial si existe la tabla
+      let historial = [];
+      try {
+        historial = await sql`
+          SELECT 
+            h.tipo_cambio,
+            h.observaciones,
+            h.fecha_cambio,
+            ur.nombres || ' ' || ur.apellidos AS usuario_responsable,
+            ur.email AS correo_responsable
+          FROM public.historial_equipos h
+          LEFT JOIN public.usuarios ur ON h.usuario_responsable_id = ur.id
+          WHERE h.equipo_id = ${parseInt(equipo_id)}
+          ORDER BY h.fecha_cambio DESC
+        `;
+      } catch {
+        console.log('ℹ️ Tabla historial_equipos no encontrada, sin historial.');
+      }
+
+      // 7️⃣ Formatear respuesta
       const equipoFormateado = {
-        ...eq,
-        nombre_usuario_asignado: eq.nombre_usuario_asignado
-          ? `${eq.nombre_usuario_asignado} ${eq.apellido_usuario_asignado}`.trim()
-          : null
+        ...equipo,
+        usuario_asignado: equipo.usuario_asignado || null,
+        correo_usuario_asignado: equipo.correo_usuario_asignado || null,
+        historial: historial.map(h => ({
+          ...h,
+          fecha_formateada: new Date(h.fecha_cambio).toLocaleString('es-CO', {
+            timeZone: 'America/Bogota'
+          })
+        }))
       };
 
+      // 8️⃣ Log interno
+      console.log('✅ Equipo consultado exitosamente:', {
+        equipo_id: parseInt(equipo_id),
+        usuario_consulta: usuario_id,
+        rol: usuario_rol,
+        tiene_historial: historial.length > 0,
+        timestamp: new Date().toISOString()
+      });
+
+      // 9️⃣ Enviar respuesta
       res.status(200).json({
         success: true,
+        message: 'Equipo obtenido exitosamente',
         data: equipoFormateado
       });
 
     } catch (error) {
-      console.error('Error al obtener equipo:', error);
+      console.error('❌ Error al obtener equipo:', {
+        error: error.message,
+        stack: error.stack,
+        equipo_id: req.params.id,
+        user_id: req.user?.id,
+        user_rol: req.user?.rol_nombre || req.user?.rol,
+        timestamp: new Date().toISOString()
+      });
+
+      if (error.code === '42703') {
+        return res.status(400).json({
+          success: false,
+          message: 'Campo de consulta inválido',
+          error: 'INVALID_COLUMN'
+        });
+      }
+
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
+        error: 'INTERNAL_SERVER_ERROR'
       });
     }
   }
