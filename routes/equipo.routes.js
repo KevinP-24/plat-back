@@ -125,25 +125,11 @@ const equipoController = new EquipoController();
  * @swagger
  * /api/equipo:
  *   get:
- *     summary: Obtiene todos los equipos del inventario
+ *     summary: Obtiene todos los equipos
  *     description: |
- *       Recupera una lista completa de equipos del inventario con filtros opcionales.  
- *       La respuesta incluye información detallada del **usuario actualmente asignado**, como nombre completo y correo.  
- *       
- *       **Control de acceso por rol:**
- *       - 👨‍💼 **Administrador / Técnico:** pueden ver todos los equipos del inventario.  
- *       - 👤 **Usuario Final:** solo puede ver los equipos que le han sido asignados.  
- *       
- *       **Filtros disponibles:**  
- *       - Estado del equipo  
- *       - Tipo de equipo  
- *       - Usuario asignado  
- *       - Límite y desplazamiento para paginación  
- *       
- *       Los resultados incluyen nombre, marca, modelo, usuario asignado y fechas relevantes.
+ *       Recupera una lista de todos los equipos del inventario con filtros opcionales.  
+ *       Ahora incluye los datos del **usuario asignado** (nombre completo y correo electrónico).
  *     tags: [Equipo]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: estado_id
@@ -158,14 +144,14 @@ const equipoController = new EquipoController();
  *           type: integer
  *           minimum: 1
  *         description: Filtrar por ID del tipo de equipo
- *         example: 2
+ *         example: 1
  *       - in: query
  *         name: usuario_asignado_id
  *         schema:
  *           type: integer
  *           minimum: 1
  *         description: Filtrar por ID del usuario asignado
- *         example: 10
+ *         example: 123
  *       - in: query
  *         name: limit
  *         schema:
@@ -173,8 +159,8 @@ const equipoController = new EquipoController();
  *           minimum: 1
  *           maximum: 100
  *           default: 50
- *         description: Límite máximo de registros a devolver
- *         example: 20
+ *         description: Número máximo de registros a devolver
+ *         example: 10
  *       - in: query
  *         name: offset
  *         schema:
@@ -189,22 +175,14 @@ const equipoController = new EquipoController();
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Equipo'
+ *               $ref: '#/components/schemas/EquipoResponse'
  *             examples:
  *               success:
- *                 summary: Ejemplo de respuesta exitosa
+ *                 summary: Respuesta exitosa con datos del usuario asignado
  *                 value:
  *                   success: true
  *                   data:
- *                     - id: 9
+ *                     - id: 1
  *                       codigo_inventario: "EQ-001-2025"
  *                       nombre: "Computador HP EliteDesk"
  *                       descripcion: "Computador de escritorio para tareas administrativas"
@@ -213,33 +191,23 @@ const equipoController = new EquipoController();
  *                       modelo: "EliteDesk 800 G6"
  *                       numero_serie: "HP123456789"
  *                       estado_id: 1
- *                       ubicacion_id: 2
+ *                       ubicacion_id: 1
  *                       usuario_asignado_id: 10
- *                       nombre_usuario_asignado: "Kevin Payan"
- *                       correo_usuario_asignado: "kevin.payan@empresa.com"
+ *                       nombre_usuario_asignado: "Administrador 1"
+ *                       correo_usuario_asignado: "jssmorales51@gmail.com"
  *                       fecha_adquisicion: "2025-01-15"
  *                       fecha_garantia: "2027-01-15"
  *                       valor_compra: 1500000.00
  *                       proveedor: "TechSolutions S.A.S"
  *                       observaciones: "Equipo en excelente estado"
  *                       fecha_creacion: "2025-01-15T10:30:00.000Z"
- *                       fecha_actualizacion: "2025-10-12T04:55:27.023Z"
- *       401:
- *         description: Usuario no autenticado
- *         content:
- *           application/json:
- *             example:
- *               success: false
- *               message: "Usuario no autenticado"
- *               error: "NO_AUTENTICADO"
+ *                       fecha_actualizacion: "2025-01-15T10:30:00.000Z"
  *       500:
  *         description: Error interno del servidor
  *         content:
  *           application/json:
- *             example:
- *               success: false
- *               message: "Error interno del servidor"
- *               error: "INTERNAL_SERVER_ERROR"
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/', equipoController.obtenerEquipos);
 
@@ -247,18 +215,12 @@ router.get('/', equipoController.obtenerEquipos);
  * @swagger
  * /api/equipo/{id}:
  *   get:
- *     summary: Obtiene un equipo específico por su ID
+ *     summary: Obtiene un equipo por ID
  *     description: |
- *       Devuelve los detalles completos de un equipo según su ID.  
- *       Incluye la información del **usuario actualmente asignado** (nombre y correo),  
- *       así como las fechas de adquisición, garantía y actualización.  
- *       
- *       **Control de acceso:**
- *       - 👨‍💼 **Administrador / Técnico:** pueden consultar cualquier equipo.  
- *       - 👤 **Usuario Final:** solo puede consultar equipos que tiene asignados.
+ *       Recupera los detalles de un equipo específico mediante su ID.  
+ *       Incluye información del usuario actualmente asignado al equipo, 
+ *       como su nombre completo y correo electrónico.
  *     tags: [Equipo]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -267,27 +229,21 @@ router.get('/', equipoController.obtenerEquipos);
  *           type: integer
  *           minimum: 1
  *         description: ID único del equipo
- *         example: 9
+ *         example: 1
  *     responses:
  *       200:
  *         description: Equipo encontrado exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Equipo'
+ *               $ref: '#/components/schemas/EquipoResponse'
  *             examples:
  *               success:
- *                 summary: Ejemplo de equipo encontrado
+ *                 summary: Equipo encontrado con datos del usuario asignado
  *                 value:
  *                   success: true
  *                   data:
- *                     id: 9
+ *                     id: 1
  *                     codigo_inventario: "EQ-001-2025"
  *                     nombre: "Computador HP EliteDesk"
  *                     descripcion: "Computador de escritorio para tareas administrativas"
@@ -300,49 +256,47 @@ router.get('/', equipoController.obtenerEquipos);
  *                       ram: "8GB"
  *                       storage: "256GB SSD"
  *                     estado_id: 1
- *                     ubicacion_id: 2
+ *                     ubicacion_id: 1
  *                     usuario_asignado_id: 10
- *                     nombre_usuario_asignado: "Kevin Payan"
- *                     correo_usuario_asignado: "kevin.payan@empresa.com"
+ *                     nombre_usuario_asignado: "Administrador 1"
+ *                     correo_usuario_asignado: "jssmorales51@gmail.com"
  *                     fecha_adquisicion: "2025-01-15"
  *                     fecha_garantia: "2027-01-15"
  *                     valor_compra: 1500000.00
  *                     proveedor: "TechSolutions S.A.S"
  *                     observaciones: "Equipo en excelente estado"
  *                     fecha_creacion: "2025-01-15T10:30:00.000Z"
- *                     fecha_actualizacion: "2025-10-12T04:55:27.023Z"
+ *                     fecha_actualizacion: "2025-01-15T10:30:00.000Z"
  *       400:
  *         description: ID de equipo inválido
  *         content:
  *           application/json:
- *             example:
- *               success: false
- *               message: "ID de equipo inválido"
- *               error: "ID_INVALIDO"
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_id:
+ *                 summary: ID inválido
+ *                 value:
+ *                   success: false
+ *                   message: "ID de equipo inválido"
  *       404:
  *         description: Equipo no encontrado
  *         content:
  *           application/json:
- *             example:
- *               success: false
- *               message: "Equipo no encontrado"
- *               error: "EQUIPO_NO_ENCONTRADO"
- *       401:
- *         description: Usuario no autenticado
- *         content:
- *           application/json:
- *             example:
- *               success: false
- *               message: "Usuario no autenticado"
- *               error: "NO_AUTENTICADO"
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               not_found:
+ *                 summary: Equipo no encontrado
+ *                 value:
+ *                   success: false
+ *                   message: "Equipo no encontrado"
  *       500:
  *         description: Error interno del servidor
  *         content:
  *           application/json:
- *             example:
- *               success: false
- *               message: "Error interno del servidor"
- *               error: "INTERNAL_SERVER_ERROR"
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', equipoController.obtenerEquipoPorId);
 
@@ -697,23 +651,14 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  * @swagger
  * /api/equipo/{id}/asignar-usuario:
  *   put:
- *     summary: Asigna un equipo a un usuario registrado en el sistema
+ *     summary: Asigna un equipo a un usuario del sistema
  *     description: |
- *       Permite asignar un **equipo existente** a un usuario activo dentro del sistema.  
+ *       Permite asignar un equipo existente a un usuario activo en el sistema.
+ *       Solo los roles **Administrador** o **Técnico** pueden realizar esta acción.
  *       
- *       **Control de acceso:**
- *       - 👨‍💼 **Administrador** y **Técnico:** pueden asignar equipos a cualquier usuario.  
- *       - 👤 **Usuario Final:** no tiene permisos para realizar esta acción.
- *       
- *       Al realizar la asignación:
- *       - Se actualiza el campo `usuario_asignado_id` en la tabla **equipos**.  
- *       - Se registra automáticamente el evento en el historial (**historial_equipos**) con:
- *         - Usuario anterior y nuevo
- *         - Estado y ubicación previos y actuales
- *         - Usuario responsable de la acción
- *         - Fecha y hora del cambio
- *       
- *       El proceso es completamente automático, no requiere registrar texto manualmente.
+ *       Al asignar un equipo, se actualiza el campo `usuario_asignado_id` en la tabla **equipos**
+ *       y se registra automáticamente el cambio en el historial (**historial_equipos**),
+ *       incluyendo los estados, ubicaciones y usuario anterior.
  *     tags: [Equipo]
  *     security:
  *       - bearerAuth: []
@@ -724,7 +669,7 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *         schema:
  *           type: integer
  *           minimum: 1
- *         description: ID único del equipo que será asignado
+ *         description: ID único del equipo a asignar
  *         example: 9
  *     requestBody:
  *       required: true
@@ -738,11 +683,11 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *               usuario_nuevo_id:
  *                 type: integer
  *                 description: ID del usuario al que se asignará el equipo
- *                 example: 13
+ *                 example: 5
  *               observaciones:
  *                 type: string
- *                 description: Comentario adicional opcional sobre la asignación
- *                 example: "Asignación temporal al área de ingeniería para pruebas de rendimiento"
+ *                 description: Comentario o motivo de la asignación
+ *                 example: "Asignación temporal al departamento de ingeniería"
  *     responses:
  *       200:
  *         description: Equipo asignado correctamente al usuario
@@ -762,46 +707,31 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *                   properties:
  *                     equipo_id:
  *                       type: integer
- *                       description: ID del equipo asignado
  *                       example: 9
  *                     nombre_equipo:
  *                       type: string
- *                       description: Nombre del equipo asignado
- *                       example: "Computador HP EliteDesk 800 G6"
+ *                       example: "Impresora HP LaserJet 2035"
  *                     usuario_nuevo_id:
  *                       type: integer
- *                       description: ID del nuevo usuario asignado
- *                       example: 13
+ *                       example: 5
  *                     nombre_usuario:
  *                       type: string
- *                       description: Nombre completo del nuevo usuario asignado
- *                       example: "Kevin Payan"
+ *                       example: "Juan Pérez García"
  *                     fecha_cambio:
  *                       type: string
  *                       format: date-time
- *                       description: Fecha y hora en que se realizó el cambio
- *                       example: "2025-10-12T05:11:14.125Z"
+ *                       example: "2025-10-11T15:42:00.000Z"
  *                     observaciones:
  *                       type: string
- *                       description: Observación registrada durante la asignación
- *                       example: "Asignación temporal al área de ingeniería para pruebas de rendimiento"
+ *                       example: "Asignación temporal al departamento de ingeniería"
  *       400:
  *         description: Solicitud inválida o datos incorrectos
  *         content:
  *           application/json:
- *             examples:
- *               invalid_equipo_id:
- *                 summary: ID de equipo inválido
- *                 value:
- *                   success: false
- *                   message: "ID de equipo inválido"
- *                   error: "ID_INVALIDO"
- *               invalid_user_id:
- *                 summary: ID de usuario inválido
- *                 value:
- *                   success: false
- *                   message: "El ID del nuevo usuario es requerido y debe ser válido"
- *                   error: "USUARIO_INVALIDO"
+ *             example:
+ *               success: false
+ *               message: "El ID del nuevo usuario es requerido y debe ser válido"
+ *               error: "USUARIO_INVALIDO"
  *       401:
  *         description: Usuario no autenticado
  *         content:
@@ -811,7 +741,7 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *               message: "Usuario no autenticado"
  *               error: "NO_AUTENTICADO"
  *       403:
- *         description: Permisos insuficientes para asignar equipos
+ *         description: Permisos insuficientes
  *         content:
  *           application/json:
  *             example:
@@ -823,14 +753,14 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *         content:
  *           application/json:
  *             examples:
- *               equipo_no_encontrado:
+ *               equipo_not_found:
  *                 summary: Equipo no encontrado
  *                 value:
  *                   success: false
  *                   message: "Equipo no encontrado"
  *                   error: "EQUIPO_NO_ENCONTRADO"
- *               usuario_no_encontrado:
- *                 summary: Usuario no encontrado o inactivo
+ *               user_not_found:
+ *                 summary: Usuario no encontrado
  *                 value:
  *                   success: false
  *                   message: "Usuario no encontrado o inactivo"
@@ -844,6 +774,6 @@ router.put('/:id', verifyToken, requireAdmin, equipoController.actualizarEquipo.
  *               message: "Error interno del servidor"
  *               error: "INTERNAL_SERVER_ERROR"
  */
-router.put('/:id/asignar-usuario',verifyToken,equipoController.asignarEquipoAUsuario.bind(equipoController));
+router.put('/:id/asignar-usuario', verifyToken, equipoController.asignarEquipoAUsuario.bind(equipoController));
 
 export default router;
