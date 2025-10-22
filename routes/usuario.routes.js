@@ -896,7 +896,19 @@ router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion)
  * /api/usuarios/{id}/baja:
  *   patch:
  *     summary: Dar de baja lógica a un usuario (activo = false)
- *     description: Desactiva la cuenta del usuario sin eliminar su registro de la base de datos.
+ *     description: |
+ *       Desactiva la cuenta de un usuario sin eliminar su registro de la base de datos.  
+ *       Solo el **propio usuario** o un **administrador** pueden realizar esta acción.
+ *       
+ *       Al dar de baja un usuario:
+ *       - El campo `activo` pasa a `false`.
+ *       - Se actualiza el campo `fecha_actualizacion`.
+ *       - El usuario deja de poder iniciar sesión.
+ *       
+ *       **Permisos:**
+ *       - ✅ Administrador → Puede dar de baja a cualquier usuario.  
+ *       - ✅ Usuario → Solo puede darse de baja a sí mismo.  
+ *       - 🚫 Otros roles → No autorizado.
  *     tags: [Usuarios]
  *     security:
  *       - bearerAuth: []
@@ -906,15 +918,98 @@ router.post('/reenviar-activacion', usuariosController.reenviarCodigoActivacion)
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del usuario
- *         example: 10
+ *           minimum: 1
+ *         description: ID del usuario a dar de baja
+ *         example: 12
  *     responses:
  *       200:
- *         description: Usuario dado de baja correctamente
+ *         description: Usuario dado de baja correctamente o ya estaba inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Usuario dado de baja correctamente"
+ *             examples:
+ *               baja_exitosa:
+ *                 summary: Usuario dado de baja exitosamente
+ *                 value:
+ *                   success: true
+ *                   message: "Usuario dado de baja correctamente"
+ *               ya_inactivo:
+ *                 summary: Usuario ya estaba inactivo
+ *                 value:
+ *                   success: true
+ *                   message: "El usuario ya se encuentra dado de baja"
+ *       401:
+ *         description: Token no válido o sesión expirada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Token no válido o sesión expirada"
+ *                 error:
+ *                   type: string
+ *                   example: "UNAUTHORIZED"
+ *       403:
+ *         description: No autorizado para realizar esta acción
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "No tienes permisos para dar de baja a este usuario"
+ *                 error:
+ *                   type: string
+ *                   example: "FORBIDDEN"
  *       404:
  *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Usuario no encontrado"
+ *                 error:
+ *                   type: string
+ *                   example: "USER_NOT_FOUND"
  *       500:
  *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Error interno del servidor"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection lost"
  */
 router.patch('/:id/baja', verifyToken, usuariosController.darDeBajaUsuario.bind(usuariosController));
 
