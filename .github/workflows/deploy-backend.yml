@@ -1,0 +1,63 @@
+name: Despliegue de Backend a Cloud Run
+
+# 1. Trigger: Se activa en cada push a la rama 'development'
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  # ------------------------------
+  # TRABAJO DE PRUEBAS (CI)
+  # ------------------------------
+  test:
+    name: 1. Pruebas Unitarias (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sacar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Correr pruebas
+        # Tu package.json tiene un script de "test"
+        run: npm test
+
+  # ------------------------------
+  # TRABAJO DE DESPLIEGUE (CD)
+  # ------------------------------
+  deploy:
+    name: 2. Desplegar en Cloud Run (CD)
+    runs-on: ubuntu-latest
+    # El despliegue solo ocurre si el trabajo 'test' fue exitoso
+    needs: test
+
+    steps:
+      - name: Sacar el código
+        uses: actions/checkout@v4
+
+      - name: Autenticarse con Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configurar GCloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 1. Construir la imagen (Comando 1)
+        run: gcloud builds submit --tag gcr.io/dynamic-bongo-477122-e0/plat-back
+
+      - name: 2. Desplegar en Cloud Run (Comando 2)
+        run: |
+          gcloud run deploy plat-back-service \
+            --image gcr.io/dynamic-bongo-477122-e0/plat-back \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars "DATABASE_URL=postgresql://postgres:Plat123*@34.134.159.225:5432/postgres?sslmode=disable,JWT_SECRET=plat-epa-secret-key-2025,EMAIL_USER=notificacionesplat@gmail.com,EMAIL_PASS=fxuucznhecemjmzo,FRONTEND_URL=https://plat-epa.web.app,NODE_ENV=production"
