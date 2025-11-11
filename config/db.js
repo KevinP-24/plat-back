@@ -10,7 +10,7 @@ if (!DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
-// 🔍 Mostrar info de conexión para debugging (sin mostrar contraseña)
+// 🔍 Mostrar info de conexión para debugging
 try {
   const url = new URL(DATABASE_URL);
   console.log('📡 Configuración de conexión a base de datos:');
